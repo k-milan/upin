@@ -1,8 +1,8 @@
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 
-import type { CreateTodoInput, DailyBucket, Todo } from "@/apis/todos.types";
+import type { Attachment, CreateTodoInput, DailyBucket, Todo } from "@/apis/todos.types";
 import { getDatabase } from "@/db";
-import { dailyBuckets, dailyReviews, todos } from "@/db/schema";
+import { attachments, dailyBuckets, dailyReviews, todos } from "@/db/schema";
 
 function dbOrThrow() { const db = getDatabase(); if (!db) throw new Error("DATABASE_URL is not configured."); return db; }
 function today() { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date()); }
@@ -19,3 +19,8 @@ export async function reorderPersistentBuckets(ids: string[], day = today()) { c
 export async function getPersistentCarryReview(day: string) { const db = dbOrThrow(); const previousDate = previousDay(day); const [review] = await db.select().from(dailyReviews).where(eq(dailyReviews.reviewDate, day)).limit(1); const rows = await db.select().from(todos).where(and(eq(todos.scheduledFor, previousDate), eq(todos.completed, false))).orderBy(asc(todos.position)); return { reviewed: Boolean(review), previousDate, tasks: rows.map(mapTodo) }; }
 export async function completePersistentCarryReview(day: string, todoIds: string[]) { const db = dbOrThrow(); const previousDate = previousDay(day); await db.transaction(async (tx) => { if (todoIds.length) await tx.update(todos).set({ scheduledFor: day, bucketId: null }).where(and(inArray(todos.id, todoIds), eq(todos.scheduledFor, previousDate), eq(todos.completed, false))); await tx.insert(dailyReviews).values({ reviewDate: day, previousDate }).onConflictDoNothing({ target: dailyReviews.reviewDate }); }); return getPersistentCarryReview(day); }
 export async function reorderPersistentTodos(items: { id: string; bucketId: string | null; position: number }[]) { const db = dbOrThrow(); await db.transaction(async (tx) => Promise.all(items.map((item) => tx.update(todos).set({ bucketId: item.bucketId, position: item.position }).where(eq(todos.id, item.id))))); }
+function mapAttachment(value: typeof attachments.$inferSelect): Attachment { return { id: value.id, todoId: value.todoId, name: value.name, mimeType: value.mimeType, sizeBytes: value.sizeBytes, createdAt: value.createdAt.toISOString() }; }
+export async function listPersistentAttachments(todoId: string) { const db = dbOrThrow(); return (await db.select().from(attachments).where(eq(attachments.todoId, todoId)).orderBy(asc(attachments.createdAt))).map(mapAttachment); }
+export async function createPersistentAttachment(todoId: string, value: { name: string; mimeType: string; sizeBytes: number; storageKey: string }) { const db = dbOrThrow(); const [attachment] = await db.insert(attachments).values({ todoId, ...value }).returning(); return mapAttachment(attachment); }
+export async function getPersistentAttachment(id: string) { const db = dbOrThrow(); const [value] = await db.select().from(attachments).where(eq(attachments.id, id)).limit(1); return value ?? null; }
+export async function deletePersistentAttachment(id: string) { const db = dbOrThrow(); const [value] = await db.delete(attachments).where(eq(attachments.id, id)).returning(); return value ?? null; }

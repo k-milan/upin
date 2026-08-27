@@ -2,7 +2,7 @@
 
 import { DndContext, DragEndEvent, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, ChevronLeft, ChevronRight, GripVertical, Inbox, Moon, Plus, Sun, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Download, GripVertical, Inbox, Moon, Paperclip, Plus, Sun, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -19,6 +19,8 @@ import { bucketsQueryOptions, useBuckets } from "@/lib/react-query/buckets/bucke
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { CarryReviewDialog } from "@/components/upin/carry-review-dialog";
+import { useAttachments } from "@/lib/react-query/attachments/attachments.query";
+import { useDeleteAttachment, useUploadAttachment } from "@/lib/react-query/attachments/attachments.mutation";
 
 function TaskRow({ todo, onOpen }: { todo: Todo; onOpen: () => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: todo.id });
@@ -69,7 +71,15 @@ function TaskMarkdownEditor({ todo }: { todo: Todo }) {
     return () => window.clearTimeout(timer);
   }, [markdown, saveTodo, todo.id]);
 
-  return <div className="mt-8 flex min-h-0 flex-1 flex-col"><div className="min-h-0 flex-1 overflow-y-auto"><Textarea value={markdown} onChange={(event) => setMarkdown(event.target.value)} placeholder={"# Notes\n\nWrite anything here.\n\n- [ ] First small step\n- [ ] Next small step"} className="min-h-full w-full resize-none border-0 !bg-transparent px-0 py-0 text-[15px] leading-8 shadow-none placeholder:text-muted-foreground/65 focus-visible:ring-0" /></div><div className="pt-4 text-xs text-muted-foreground">{saveLabel} · Markdown supported</div></div>;
+  return <div className="mt-8 flex min-h-0 flex-1 flex-col"><div className="min-h-0 flex-1 overflow-y-auto"><Textarea value={markdown} onChange={(event) => setMarkdown(event.target.value)} placeholder={"# Notes\n\nWrite anything here.\n\n- [ ] First small step\n- [ ] Next small step"} className="min-h-full w-full resize-none border-0 !bg-transparent px-0 py-0 text-[15px] leading-8 shadow-none placeholder:text-muted-foreground/65 focus-visible:ring-0" /></div><TaskAttachments todoId={todo.id} /><div className="pt-3 text-xs text-muted-foreground">{saveLabel} · Markdown supported</div></div>;
+}
+
+function formatBytes(size: number) { return size < 1024 * 1024 ? `${Math.max(1, Math.round(size / 1024))} KB` : `${(size / 1024 / 1024).toFixed(1)} MB`; }
+function TaskAttachments({ todoId }: { todoId: string }) {
+  const { data: attachments = [] } = useAttachments(todoId);
+  const upload = useUploadAttachment(todoId);
+  const remove = useDeleteAttachment(todoId);
+  return <div className="border-t border-border/70 pt-3"><div className="flex items-center justify-between"><span className="text-xs text-muted-foreground">{attachments.length ? `${attachments.length} attachment${attachments.length === 1 ? "" : "s"}` : "No attachments"}</span><label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"><Paperclip className="size-3.5" />{upload.isPending ? "Adding…" : "Attach file"}<input type="file" className="sr-only" disabled={upload.isPending} onChange={(event) => { const file = event.target.files?.[0]; if (file) upload.mutate(file); event.currentTarget.value = ""; }} /></label></div>{attachments.length > 0 && <ul className="mt-2 space-y-1">{attachments.map((attachment) => <li key={attachment.id} className="group flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-muted/70"><Paperclip className="size-3.5 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1 truncate">{attachment.name}</span><span className="text-muted-foreground">{formatBytes(attachment.sizeBytes)}</span><a href={`/api/v1/attachments/${attachment.id}`} aria-label={`Download ${attachment.name}`} className="rounded p-1 text-muted-foreground hover:text-foreground"><Download className="size-3.5" /></a><button type="button" onClick={() => remove.mutate(attachment.id)} aria-label={`Remove ${attachment.name}`} className="rounded p-1 text-muted-foreground hover:text-destructive"><Trash2 className="size-3.5" /></button></li>)}</ul>}</div>;
 }
 
 function TaskDetailsPanel({ todo, onClose }: { todo: Todo; onClose: () => void }) {

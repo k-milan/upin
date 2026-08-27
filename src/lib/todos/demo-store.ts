@@ -1,4 +1,4 @@
-import type { CreateTodoInput, DailyBucket, Todo } from "@/apis/todos.types";
+import type { Attachment, CreateTodoInput, DailyBucket, Todo } from "@/apis/todos.types";
 
 const initialTodos: Todo[] = [
   { id: "upin-1", title: "Sketch the UPin home screen", completed: false, position: 0, bucket: "today", scheduledFor: "2026-08-27", bucketId: "morning-2026-08-27", checklist: [{ id: "upin-1-a", text: "Choose the first daily view", completed: true }], createdAt: "2026-08-27T00:00:00.000Z" },
@@ -40,3 +40,10 @@ export function updateDemoTodo(id: string, input: Partial<Pick<Todo, "completed"
 export function getDemoCarryReview(day: string) { const previousDate = previousDay(day); return { reviewed: reviewedDays.has(day), previousDate, tasks: todos.filter((todo) => todo.scheduledFor === previousDate && !todo.completed) }; }
 export function completeDemoCarryReview(day: string, todoIds: string[]) { for (const todo of todos) if (todoIds.includes(todo.id)) { todo.scheduledFor = day; todo.bucketId = null; } reviewedDays.add(day); return getDemoCarryReview(day); }
 export function reorderDemoTodos(items: { id: string; bucketId: string | null; position: number }[]) { for (const item of items) { const todo = todos.find((candidate) => candidate.id === item.id); if (todo) Object.assign(todo, item); } return todos; }
+const attachmentStore = globalThis as unknown as { upinAttachments?: (Attachment & { storageKey: string })[] };
+const demoAttachments = attachmentStore.upinAttachments ?? []; attachmentStore.upinAttachments = demoAttachments;
+function publicAttachment(item: Attachment & { storageKey: string }): Attachment { return { id: item.id, todoId: item.todoId, name: item.name, mimeType: item.mimeType, sizeBytes: item.sizeBytes, createdAt: item.createdAt }; }
+export function listDemoAttachments(todoId: string) { return demoAttachments.filter((item) => item.todoId === todoId).map(publicAttachment); }
+export function createDemoAttachment(todoId: string, value: { name: string; mimeType: string; sizeBytes: number; storageKey: string }) { const item = { id: crypto.randomUUID(), todoId, createdAt: new Date().toISOString(), ...value }; demoAttachments.push(item); return publicAttachment(item); }
+export function getDemoAttachment(id: string) { return demoAttachments.find((item) => item.id === id) ?? null; }
+export function deleteDemoAttachment(id: string) { const index = demoAttachments.findIndex((item) => item.id === id); return index < 0 ? null : demoAttachments.splice(index, 1)[0]; }

@@ -19,6 +19,7 @@
 
 # production
 /build
+/storage/attachments/
 
 # misc
 .DS_Store

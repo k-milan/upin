@@ -12,6 +12,8 @@ export type Todo = {
   createdAt: string;
 };
 
+export type Attachment = { id: string; todoId: string; name: string; mimeType: string; sizeBytes: number; createdAt: string };
+
 export type CreateTodoInput = Pick<Todo, "title" | "bucket"> & Partial<Pick<Todo, "bucketId">> & { scheduledFor?: string };
 
 export type DailyBucket = { id: string; name: string; position: number };
