@@ -14,7 +14,7 @@ The web app owns the browser UI and `/api` routes. A separate TypeScript MCP pro
 
 ## Current state
 
-The initial Today checklist is working with add and complete interactions. Until the `upin` Postgres database is provisioned, it runs against a development-only in-memory store. Those example tasks reset when the server restarts.
+UPin now has a working Today view and Inbox, date navigation, user-defined daily buckets, persisted task and bucket ordering, a start-of-day carry-over review, Markdown task notes, and local task attachments. With `DATABASE_URL` configured, task data persists in PostgreSQL; without it, the app falls back to a development-only in-memory store.
 
 ## Daily buckets and drag-and-drop
 
@@ -26,12 +26,12 @@ Today is organised into small, named buckets you create for that particular day 
 - The separate **Unbucketed** section holds tasks that do not belong in a daily bucket yet.
 - Buckets themselves can be reordered on the day.
 - Empty buckets stay visible until deliberately removed.
-- During the start-of-day carry-over review, a carried task can be placed into a chosen bucket; otherwise it enters an unassigned section at the top of Today.
+- At the start of the current day, unfinished tasks from yesterday can be carried over individually, all together, or not at all. Carried tasks enter Unbucketed for fresh organisation.
 - Dragging must remain fully keyboard-accessible; it is a convenience, not the only way to organise tasks.
 
-Each task opens in a responsive side sheet: half-width on larger screens and full-screen on smaller ones. Notes, bullets, and checklists live together as Markdown. Attachments come after Postgres-backed tasks and the daily-review flow.
+Each task opens in a responsive floating paper panel: half-width on larger screens and full-screen on smaller ones. Notes live together as Markdown with debounced autosave. Files up to 10 MB can be attached, downloaded, and removed; files are stored under `storage/attachments` while their metadata lives in PostgreSQL.
 
-New-task and drag motion will be designed as a deliberate later pass. The first implementation should keep movement subtle, quick, and optional for people who prefer reduced motion.
+The richer Notion-like block editor remains a later roadmap item. The current editor stores plain Markdown source. New-task motion will also get a deliberate later design pass; existing panel movement respects reduced-motion preferences.
 
 ## Run locally
 
@@ -40,12 +40,14 @@ pnpm install
 pnpm dev
 ```
 
-For the eventual Postgres setup, copy `.env.example` to `.env.local`, set `DATABASE_URL`, then run:
+To run PostgreSQL in Docker, create an ignored `.env` with `POSTGRES_PASSWORD`, then start it. Copy `.env.example` to `.env.local`, set `DATABASE_URL`, and run the migration:
 
 ```bash
-pnpm db:generate
+docker compose up -d
 pnpm db:migrate
 ```
+
+The named Docker volume `upin-postgres` keeps database data when the container is recreated. Back up both that database and `storage/attachments` before deployment.
 
 ## Visual direction
 
