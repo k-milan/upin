@@ -62,7 +62,7 @@ function dayHeading(date: string) {
   if (date === current) return "Today";
   if (date === shiftDate(current, -1)) return "Yesterday";
   if (date === shiftDate(current, 1)) return "Tomorrow";
-  return new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(new Date(`${date}T12:00:00`));
+  return new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric" }).format(new Date(`${date}T12:00:00`));
 }
 
 function TaskMarkdownEditor({ todo }: { todo: Todo }) {
