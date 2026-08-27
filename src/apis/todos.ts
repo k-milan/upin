@@ -1,8 +1,8 @@
 import http from "@/apis/http";
 import type { CreateTodoInput, Todo } from "@/apis/todos.types";
 
-export async function fetchTodos(bucket: Todo["bucket"] = "today") {
-  const response = await http.get<Todo[]>(`/v1/todos?bucket=${bucket}`);
+export async function fetchTodos(bucket: Todo["bucket"] = "today", date?: string) {
+  const response = await http.get<Todo[]>(`/v1/todos?bucket=${bucket}${date ? `&date=${date}` : ""}`);
   return response.data;
 }
 

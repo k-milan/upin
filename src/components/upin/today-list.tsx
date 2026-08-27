@@ -2,7 +2,7 @@
 
 import { DndContext, DragEndEvent, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, GripVertical, Inbox, Moon, Plus, Sun, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, GripVertical, Inbox, Moon, Plus, Sun, X } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -50,6 +50,10 @@ function TaskComposer({ bucketId }: { bucketId?: string | null }) {
   return <form onSubmit={addTask} className="my-2 flex items-center gap-2"><Input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} onBlur={() => !title && setIsOpen(false)} placeholder="New task" aria-label="New task" className="h-8 rounded-lg border-border bg-background px-2.5 text-xs shadow-none placeholder:text-muted-foreground focus-visible:border-muted-foreground/40 focus-visible:ring-1 focus-visible:ring-muted-foreground/15" /><Button type="submit" variant="ghost" size="icon" className="size-8 shrink-0 rounded-lg text-muted-foreground hover:text-secondary-foreground"><Plus className="size-4" /></Button></form>;
 }
 
+function dateKey(date: Date) { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(date); }
+function shiftDate(date: string, amount: number) { const value = new Date(`${date}T12:00:00`); value.setDate(value.getDate() + amount); return dateKey(value); }
+function dateLabel(date: string) { return new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(new Date(`${date}T12:00:00`)); }
+
 function TaskMarkdownEditor({ todo }: { todo: Todo }) {
   const { mutate: saveTodo } = useUpdateTodo();
   const [markdown, setMarkdown] = useState(todo.detailsMarkdown ?? todo.notes ?? "");
@@ -74,7 +78,8 @@ function TaskDetailsPanel({ todo, onClose }: { todo: Todo; onClose: () => void }
 }
 
 export function TodayList() {
-  const { data: todos = [], isLoading } = useTodos();
+  const [day, setDay] = useState(() => dateKey(new Date()));
+  const { data: todos = [], isLoading } = useTodos("today", day);
   const { data: buckets = [] } = useBuckets();
   const updateTodo = useUpdateTodo();
   const createBucket = useCreateBucket();
@@ -111,12 +116,12 @@ export function TodayList() {
     const task = todos.find((todo) => todo.id === event.active.id);
     const destination = event.over.id === "unbucketed" ? null : buckets.some((bucket) => bucket.id === event.over?.id) ? String(event.over.id) : todos.find((todo) => todo.id === event.over?.id)?.bucketId;
     if (!task || destination === undefined || task.bucketId === destination) return;
-    queryClient.setQueryData(todosQueryOptions().queryKey, todos.map((todo) => todo.id === task.id ? { ...todo, bucketId: destination } : todo));
+    queryClient.setQueryData(todosQueryOptions("today", day).queryKey, todos.map((todo) => todo.id === task.id ? { ...todo, bucketId: destination } : todo));
     updateTodo.mutate({ id: task.id, input: { bucketId: destination } });
   }
   return <div className="min-h-screen md:flex"><motion.section layout transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} className={cn("min-w-0 flex-1 px-5 pb-16 pt-10 sm:pt-16", selectedTodo && "md:max-w-[50%]")}><div className="mx-auto w-full max-w-xl">
     <header className="mb-9 flex items-center justify-between"><div className="flex items-center gap-2.5 text-lg font-semibold tracking-[-0.04em]"><span className="grid size-6 rotate-45 place-items-center rounded-[8px] bg-primary"><span className="-rotate-45 text-[9px] text-primary-foreground">✦</span></span>UPin</div><div className="flex items-center gap-1"><Button variant="ghost" size="icon" onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")} className="size-8 rounded-[10px] text-muted-foreground hover:text-foreground" aria-label={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>{resolvedTheme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}</Button><Button variant="ghost" size="sm" render={<Link href="/inbox" />} className="rounded-[10px] text-muted-foreground hover:text-foreground"><Inbox className="size-4" /> Inbox</Button></div></header>
-    <div className="mb-6"><p className="mb-1 text-sm text-muted-foreground">Thursday, August 27</p><div className="flex items-center justify-between gap-3"><h1 className="text-4xl font-semibold tracking-[-0.06em]">Today</h1>{isAddingBucket ? <form onSubmit={addBucket} className="flex items-center gap-1"><Input autoFocus value={newBucketName} onChange={(event) => setNewBucketName(event.target.value)} onBlur={() => !newBucketName && setIsAddingBucket(false)} placeholder="Bucket name" aria-label="New bucket name" className="h-8 w-28 rounded-lg border-border bg-background px-2 text-xs shadow-none" /><Button type="submit" variant="ghost" size="icon" className="size-8 rounded-lg text-muted-foreground"><Plus className="size-4" /></Button></form> : <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddingBucket(true)} className="rounded-lg px-1 text-xs text-muted-foreground hover:text-secondary-foreground"><Plus className="size-3.5" /> Bucket</Button>}</div></div>
+    <div className="mb-6"><div className="mb-1 flex items-center gap-1 text-sm text-muted-foreground"><Button variant="ghost" size="icon" onClick={() => setDay(shiftDate(day, -1))} className="size-6 rounded-md"><ChevronLeft className="size-3.5" /></Button><span>{dateLabel(day)}</span><Button variant="ghost" size="icon" onClick={() => setDay(shiftDate(day, 1))} className="size-6 rounded-md"><ChevronRight className="size-3.5" /></Button></div><div className="flex items-center justify-between gap-3"><h1 className="text-4xl font-semibold tracking-[-0.06em]">Today</h1>{isAddingBucket ? <form onSubmit={addBucket} className="flex items-center gap-1"><Input autoFocus value={newBucketName} onChange={(event) => setNewBucketName(event.target.value)} onBlur={() => !newBucketName && setIsAddingBucket(false)} placeholder="Bucket name" aria-label="New bucket name" className="h-8 w-28 rounded-lg border-border bg-background px-2 text-xs shadow-none" /><Button type="submit" variant="ghost" size="icon" className="size-8 rounded-lg text-muted-foreground"><Plus className="size-4" /></Button></form> : <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddingBucket(true)} className="rounded-lg px-1 text-xs text-muted-foreground hover:text-secondary-foreground"><Plus className="size-3.5" /> Bucket</Button>}</div></div>
     <DndContext sensors={sensors} onDragEnd={moveTask}><div className="space-y-3">{isLoading ? <p className="py-5 text-sm text-muted-foreground">Opening your list…</p> : <>{buckets.map((bucket) => <Bucket key={bucket.id} id={bucket.id}><Input aria-label={`${bucket.name} bucket name`} defaultValue={bucket.name} onBlur={(event) => { const name = event.target.value.trim(); if (name && name !== bucket.name) updateBucket.mutate({ id: bucket.id, name }); }} className="mt-3 mb-2 h-9 w-full rounded-xl border-0 !bg-background px-3 text-xs font-semibold uppercase tracking-[0.14em] text-secondary-foreground shadow-none hover:!bg-muted/60 focus-visible:!bg-card focus-visible:ring-1" />{grouped.get(bucket.id)?.map((todo) => <TaskRow key={todo.id} todo={todo} onOpen={() => setSelectedTodo({ ...todo, checklist: todo.checklist ?? [] })} />)}<TaskComposer bucketId={bucket.id} /></Bucket>)}<Bucket id="unbucketed"><p className="mt-4 px-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Unbucketed</p>{unbucketedTodos.map((todo) => <TaskRow key={todo.id} todo={todo} onOpen={() => setSelectedTodo({ ...todo, checklist: todo.checklist ?? [] })} />)}<TaskComposer /></Bucket></>}</div></DndContext>
     <p className="mt-8 text-center text-xs text-muted-foreground">Drag a task by its handle, or open it for notes and details.</p>
   </div></motion.section><AnimatePresence>{selectedTodo && <TaskDetailsPanel key="task-details" todo={selectedTodo} onClose={() => setSelectedTodo(null)} />}</AnimatePresence></div>;

@@ -8,8 +8,8 @@ const createTodoSchema = z.object({ title: z.string().trim().min(1).max(280), bu
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const bucket = new URL(request.url).searchParams.get("bucket") === "inbox" ? "inbox" : "today";
-  return Response.json(process.env.DATABASE_URL ? await listPersistentTodos(bucket) : listDemoTodos(bucket));
+  const url = new URL(request.url); const bucket = url.searchParams.get("bucket") === "inbox" ? "inbox" : "today";
+  return Response.json(process.env.DATABASE_URL ? await listPersistentTodos(bucket, url.searchParams.get("date") ?? undefined) : listDemoTodos(bucket));
 }
 
 export async function POST(request: Request) {
