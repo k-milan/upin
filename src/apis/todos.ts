@@ -15,3 +15,4 @@ export async function updateTodo(id: string, input: Partial<Pick<Todo, "complete
   const response = await http.patch<Todo>(`/v1/todos/${id}`, input);
   return response.data;
 }
+export async function reorderTodos(input: { items: { id: string; bucketId: string | null; position: number }[] }) { await http.patch("/v1/todos/order", input); }

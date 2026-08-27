@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { createTodo, updateTodo } from "@/apis/todos";
+import { createTodo, reorderTodos, updateTodo } from "@/apis/todos";
 import type { CreateTodoInput, Todo } from "@/apis/todos.types";
 import { todosQueryOptions } from "@/lib/react-query/todos/todos.query";
 
@@ -22,3 +22,4 @@ export function useUpdateTodo() {
     onError: () => toast.error("Couldn’t update that task. Please try again."),
   });
 }
+export function useReorderTodos() { return useMutation({ mutationFn: reorderTodos, onError: () => toast.error("Couldn’t save that task order.") }); }

@@ -12,12 +12,13 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreateTodo, useUpdateTodo } from "@/lib/react-query/todos/todos.mutation";
+import { useCreateTodo, useReorderTodos, useUpdateTodo } from "@/lib/react-query/todos/todos.mutation";
 import { todosQueryOptions, useTodos } from "@/lib/react-query/todos/todos.query";
 import { useCreateBucket, useReorderBuckets, useUpdateBucket } from "@/lib/react-query/buckets/buckets.mutation";
 import { bucketsQueryOptions, useBuckets } from "@/lib/react-query/buckets/buckets.query";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
+import { CarryReviewDialog } from "@/components/upin/carry-review-dialog";
 
 function TaskRow({ todo, onOpen }: { todo: Todo; onOpen: () => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: todo.id });
@@ -81,8 +82,8 @@ function TaskDetailsPanel({ todo, onClose }: { todo: Todo; onClose: () => void }
 export function TodayList() {
   const [day, setDay] = useState(() => dateKey(new Date()));
   const { data: todos = [], isLoading } = useTodos("today", day);
-  const { data: buckets = [] } = useBuckets();
-  const updateTodo = useUpdateTodo();
+  const { data: buckets = [] } = useBuckets(day);
+  const reorderTodos = useReorderTodos();
   const createBucket = useCreateBucket();
   const reorderBuckets = useReorderBuckets();
   const updateBucket = useUpdateBucket();
@@ -95,7 +96,7 @@ export function TodayList() {
   const grouped = useMemo(() => new Map(buckets.map((bucket) => [bucket.id, todos.filter((todo) => todo.bucketId === bucket.id)])), [buckets, todos]);
   const unbucketedTodos = useMemo(() => todos.filter((todo) => !todo.bucketId), [todos]);
 
-  function addBucket(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (newBucketName.trim()) createBucket.mutate(newBucketName, { onSuccess: () => { setNewBucketName(""); setIsAddingBucket(false); } }); }
+  function addBucket(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (newBucketName.trim()) createBucket.mutate({ name: newBucketName, date: day }, { onSuccess: () => { setNewBucketName(""); setIsAddingBucket(false); } }); }
   function moveTask(event: DragEndEvent) {
     if (!event.over) return;
     const activeId = String(event.active.id);
@@ -110,17 +111,22 @@ export function TodayList() {
       const [movedBucket] = reordered.splice(fromIndex, 1);
       reordered.splice(toIndex, 0, movedBucket);
       const nextBuckets = reordered.map((bucket, position) => ({ ...bucket, position }));
-      queryClient.setQueryData(bucketsQueryOptions().queryKey, nextBuckets);
-      reorderBuckets.mutate(nextBuckets.map((bucket) => bucket.id));
+      queryClient.setQueryData(bucketsQueryOptions(day).queryKey, nextBuckets);
+      reorderBuckets.mutate({ bucketIds: nextBuckets.map((bucket) => bucket.id), date: day });
       return;
     }
-    const task = todos.find((todo) => todo.id === event.active.id);
-    const destination = event.over.id === "unbucketed" ? null : buckets.some((bucket) => bucket.id === event.over?.id) ? String(event.over.id) : todos.find((todo) => todo.id === event.over?.id)?.bucketId;
-    if (!task || destination === undefined || task.bucketId === destination) return;
-    queryClient.setQueryData(todosQueryOptions("today", day).queryKey, todos.map((todo) => todo.id === task.id ? { ...todo, bucketId: destination } : todo));
-    updateTodo.mutate({ id: task.id, input: { bucketId: destination } });
+    const task = todos.find((todo) => todo.id === event.active.id); const targetTask = todos.find((todo) => todo.id === event.over?.id);
+    const destination = event.over.id === "unbucketed" ? null : buckets.some((bucket) => bucket.id === event.over?.id) ? String(event.over.id) : targetTask?.bucketId;
+    if (!task || destination === undefined || targetTask?.id === task.id) return;
+    const destinationItems = todos.filter((todo) => todo.id !== task.id && todo.bucketId === destination); const targetIndex = targetTask ? destinationItems.findIndex((todo) => todo.id === targetTask.id) : destinationItems.length;
+    destinationItems.splice(targetIndex < 0 ? destinationItems.length : targetIndex, 0, { ...task, bucketId: destination });
+    const sourceItems = task.bucketId === destination ? [] : todos.filter((todo) => todo.id !== task.id && todo.bucketId === task.bucketId);
+    const changed = [...sourceItems.map((todo, position) => ({ ...todo, position })), ...destinationItems.map((todo, position) => ({ ...todo, position }))];
+    const nextTodos = todos.map((todo) => changed.find((item) => item.id === todo.id) ?? todo);
+    queryClient.setQueryData(todosQueryOptions("today", day).queryKey, nextTodos);
+    reorderTodos.mutate({ items: changed.map(({ id, bucketId, position }) => ({ id, bucketId: bucketId ?? null, position })) });
   }
-  return <div className="min-h-screen md:flex"><motion.section layout transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} className={cn("min-w-0 flex-1 px-5 pb-16 pt-10 sm:pt-16", selectedTodo && "md:max-w-[50%]")}><div className="mx-auto w-full max-w-xl">
+  return <div className="min-h-screen md:flex"><CarryReviewDialog date={day} isToday={day === dateKey(new Date())} /><motion.section layout transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} className={cn("min-w-0 flex-1 px-5 pb-16 pt-10 sm:pt-16", selectedTodo && "md:max-w-[50%]")}><div className="mx-auto w-full max-w-xl">
     <header className="mb-9 flex items-center justify-between"><div className="flex items-center gap-2.5 text-lg font-semibold tracking-[-0.04em]"><span className="grid size-6 rotate-45 place-items-center rounded-[8px] bg-primary"><span className="-rotate-45 text-[9px] text-primary-foreground">✦</span></span>UPin</div><div className="flex items-center gap-1"><Button variant="ghost" size="icon" onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")} className="size-8 rounded-[10px] text-muted-foreground hover:text-foreground" aria-label={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>{resolvedTheme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}</Button><Button variant="ghost" size="sm" render={<Link href="/inbox" />} className="rounded-[10px] text-muted-foreground hover:text-foreground"><Inbox className="size-4" /> Inbox</Button></div></header>
     <div className="mb-6"><div className="mb-1 flex items-center gap-1 text-sm text-muted-foreground"><Button variant="ghost" size="icon" onClick={() => setDay(shiftDate(day, -1))} className="size-6 rounded-md"><ChevronLeft className="size-3.5" /></Button><span>{dateLabel(day)}</span><Button variant="ghost" size="icon" onClick={() => setDay(shiftDate(day, 1))} className="size-6 rounded-md"><ChevronRight className="size-3.5" /></Button></div><div className="flex items-center justify-between gap-3"><h1 className="text-4xl font-semibold tracking-[-0.06em]">Today</h1>{isAddingBucket ? <form onSubmit={addBucket} className="flex items-center gap-1"><Input autoFocus value={newBucketName} onChange={(event) => setNewBucketName(event.target.value)} onBlur={() => !newBucketName && setIsAddingBucket(false)} placeholder="Bucket name" aria-label="New bucket name" className="h-8 w-28 rounded-lg border-border bg-background px-2 text-xs shadow-none" /><Button type="submit" variant="ghost" size="icon" className="size-8 rounded-lg text-muted-foreground"><Plus className="size-4" /></Button></form> : <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddingBucket(true)} className="rounded-lg px-1 text-xs text-muted-foreground hover:text-secondary-foreground"><Plus className="size-3.5" /> Bucket</Button>}</div></div>
     <DndContext sensors={sensors} onDragEnd={moveTask}><div className="space-y-3">{isLoading ? <p className="py-5 text-sm text-muted-foreground">Opening your list…</p> : <>{buckets.map((bucket) => <Bucket key={bucket.id} id={bucket.id}><Input aria-label={`${bucket.name} bucket name`} defaultValue={bucket.name} onBlur={(event) => { const name = event.target.value.trim(); if (name && name !== bucket.name) updateBucket.mutate({ id: bucket.id, name }); }} className="mt-3 mb-2 h-9 w-full rounded-xl border-0 !bg-background px-3 text-xs font-semibold uppercase tracking-[0.14em] text-secondary-foreground shadow-none hover:!bg-muted/60 focus-visible:!bg-card focus-visible:ring-1" />{grouped.get(bucket.id)?.map((todo) => <TaskRow key={todo.id} todo={todo} onOpen={() => setSelectedTodo({ ...todo, checklist: todo.checklist ?? [] })} />)}<TaskComposer bucketId={bucket.id} day={day} /></Bucket>)}<Bucket id="unbucketed"><p className="mt-4 px-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Unbucketed</p>{unbucketedTodos.map((todo) => <TaskRow key={todo.id} todo={todo} onOpen={() => setSelectedTodo({ ...todo, checklist: todo.checklist ?? [] })} />)}<TaskComposer day={day} /></Bucket></>}</div></DndContext>
