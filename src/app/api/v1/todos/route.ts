@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createDemoTodo, listDemoTodos } from "@/lib/todos/demo-store";
 import { createPersistentTodo, listPersistentTodos } from "@/lib/todos/repository";
 
-const createTodoSchema = z.object({ title: z.string().trim().min(1).max(280), bucket: z.enum(["today", "inbox"]), bucketId: z.string().min(1).optional() });
+const createTodoSchema = z.object({ title: z.string().trim().min(1).max(280), bucket: z.enum(["today", "inbox"]), bucketId: z.string().min(1).optional(), scheduledFor: z.string().date().optional() });
 
 export const dynamic = "force-dynamic";
 
