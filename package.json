@@ -10,7 +10,10 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx,json,css,md}\" --ignore-path .gitignore",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "mcp:dev": "tsx watch mcp/index.ts",
+    "mcp:start": "tsx mcp/index.ts",
+    "mcp:smoke": "tsx mcp/smoke.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -18,6 +21,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "@next/env": "16.3.3",
     "@tanstack/react-query": "^5.102.4",
     "@tanstack/react-query-devtools": "^5.102.4",
     "axios": "^1.19.0",
