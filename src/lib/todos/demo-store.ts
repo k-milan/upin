@@ -21,6 +21,7 @@ function demoDay(date?: string) { const key = date ?? new Intl.DateTimeFormat("e
 export function listDemoBuckets(date?: string) { return [...demoDay(date)].sort((a, b) => a.position - b.position); }
 export function createDemoBucket(name: string, date?: string) { const buckets = demoDay(date); const bucket = { id: crypto.randomUUID(), name: name.trim(), position: buckets.length }; buckets.push(bucket); return bucket; }
 export function updateDemoBucket(id: string, name: string) { const bucket = Object.values(bucketDays).flat().find((candidate) => candidate.id === id); if (!bucket) return null; bucket.name = name.trim(); return bucket; }
+export function deleteDemoBucket(id: string) { const day = Object.values(bucketDays).find((buckets) => buckets.some((bucket) => bucket.id === id)); const index = day?.findIndex((bucket) => bucket.id === id) ?? -1; if (!day || index < 0) return null; const [bucket] = day.splice(index, 1); for (const todo of todos) if (todo.bucketId === id) todo.bucketId = null; return bucket; }
 export function reorderDemoBuckets(bucketIds: string[], date?: string) { const buckets = demoDay(date); bucketIds.forEach((id, position) => { const bucket = buckets.find((candidate) => candidate.id === id); if (bucket) bucket.position = position; }); return listDemoBuckets(date); }
 
 export function listDemoTodos(bucket: Todo["bucket"], date?: string) { return todos.filter((todo) => bucket === "inbox" ? !todo.scheduledFor : todo.scheduledFor === date); }
@@ -37,6 +38,7 @@ export function updateDemoTodo(id: string, input: Partial<Pick<Todo, "completed"
   Object.assign(todo, input);
   return todo;
 }
+export function deleteDemoTodo(id: string) { const index = todos.findIndex((candidate) => candidate.id === id); if (index < 0) return null; const [todo] = todos.splice(index, 1); const relatedAttachments = demoAttachments.filter((attachment) => attachment.todoId === id); for (const attachment of relatedAttachments) demoAttachments.splice(demoAttachments.indexOf(attachment), 1); return { todo, attachments: relatedAttachments }; }
 export function getDemoCarryReview(day: string) { const previousDate = previousDay(day); return { reviewed: reviewedDays.has(day), previousDate, tasks: todos.filter((todo) => todo.scheduledFor === previousDate && !todo.completed) }; }
 export function completeDemoCarryReview(day: string, todoIds: string[]) { for (const todo of todos) if (todoIds.includes(todo.id)) { todo.scheduledFor = day; todo.bucketId = null; } reviewedDays.add(day); return getDemoCarryReview(day); }
 export function reorderDemoTodos(items: { id: string; bucketId: string | null; position: number }[]) { for (const item of items) { const todo = todos.find((candidate) => candidate.id === item.id); if (todo) Object.assign(todo, item); } return todos; }

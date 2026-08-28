@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { createTodo, reorderTodos, updateTodo } from "@/apis/todos";
+import { createTodo, deleteTodo, reorderTodos, updateTodo } from "@/apis/todos";
 import type { CreateTodoInput, Todo } from "@/apis/todos.types";
 import { todosQueryOptions } from "@/lib/react-query/todos/todos.query";
 
@@ -18,8 +18,9 @@ export function useUpdateTodo() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: Partial<Pick<Todo, "completed" | "title" | "bucket" | "bucketId" | "notes" | "detailsMarkdown" | "checklist">> }) => updateTodo(id, input),
-    onSuccess: (todo) => queryClient.invalidateQueries({ queryKey: todosQueryOptions(todo.bucket).queryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["todos"] }),
     onError: () => toast.error("Couldn’t update that task. Please try again."),
   });
 }
+export function useDeleteTodo() { const queryClient = useQueryClient(); return useMutation({ mutationFn: deleteTodo, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["todos"] }), onError: () => toast.error("Couldn’t delete that task. Please try again.") }); }
 export function useReorderTodos() { return useMutation({ mutationFn: reorderTodos, onError: () => toast.error("Couldn’t save that task order.") }); }
