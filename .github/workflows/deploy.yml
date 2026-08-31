@@ -28,4 +28,4 @@ jobs:
         env:
           DEPLOY_HOST: ${{ secrets.UPIN_DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.UPIN_DEPLOY_USER }}
-        run: ssh -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" 'bash /var/www/upin/scripts/deploy-production.sh'
+        run: ssh -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" 'cd /var/www/upin && git pull --ff-only origin main && bash scripts/deploy-production.sh'
