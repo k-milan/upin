@@ -13,10 +13,17 @@ if (!connectionString) {
 
 const pool = new Pool({ connectionString });
 
-try {
-  console.log("Applying database migrations…");
-  await migrate(drizzle(pool), { migrationsFolder: "./drizzle" });
-  console.log("Database migrations are up to date.");
-} finally {
-  await pool.end();
+async function main() {
+  try {
+    console.log("Applying database migrations…");
+    await migrate(drizzle(pool), { migrationsFolder: "./drizzle" });
+    console.log("Database migrations are up to date.");
+  } finally {
+    await pool.end();
+  }
 }
+
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});
