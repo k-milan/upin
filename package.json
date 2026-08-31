@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx,json,css,md}\" --ignore-path .gitignore",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "tsx scripts/migrate.ts",
     "mcp:dev": "tsx watch mcp/index.ts",
     "mcp:start": "tsx mcp/index.ts",
     "mcp:smoke": "tsx mcp/smoke.ts"
