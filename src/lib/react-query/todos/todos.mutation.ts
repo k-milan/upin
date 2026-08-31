@@ -17,7 +17,7 @@ export function useCreateTodo() {
 export function useUpdateTodo() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: Partial<Pick<Todo, "completed" | "title" | "bucket" | "bucketId" | "notes" | "detailsMarkdown" | "checklist">> }) => updateTodo(id, input),
+    mutationFn: ({ id, input }: { id: string; input: Partial<Pick<Todo, "completed" | "title" | "bucket" | "bucketId" | "detailsMarkdown">> }) => updateTodo(id, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["todos"] }),
     onError: () => toast.error("Couldn’t update that task. Please try again."),
   });

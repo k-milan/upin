@@ -4,7 +4,7 @@ import { deleteDemoTodo, updateDemoTodo } from "@/lib/todos/demo-store";
 import { deletePersistentTodo, updatePersistentTodo } from "@/lib/todos/repository";
 import { removeAttachment } from "@/lib/attachments/storage";
 
-const updateTodoSchema = z.object({ title: z.string().trim().min(1).max(280).optional(), completed: z.boolean().optional(), bucket: z.enum(["today", "inbox"]).optional(), bucketId: z.string().min(1).nullable().optional(), notes: z.string().max(10_000).optional(), detailsMarkdown: z.string().max(20_000).optional(), checklist: z.array(z.object({ id: z.string(), text: z.string().min(1).max(280), completed: z.boolean() })).optional() });
+const updateTodoSchema = z.object({ title: z.string().trim().min(1).max(280).optional(), completed: z.boolean().optional(), bucket: z.enum(["today", "inbox"]).optional(), bucketId: z.string().min(1).nullable().optional(), detailsMarkdown: z.string().max(20_000).optional() });
 
 export async function PATCH(request: Request, context: RouteContext<"/api/v1/todos/[id]">) {
   const parsed = updateTodoSchema.safeParse(await request.json());

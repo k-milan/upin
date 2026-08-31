@@ -6,9 +6,7 @@ export type Todo = {
   bucket: "today" | "inbox";
   bucketId?: string | null;
   scheduledFor?: string | null;
-  notes?: string;
   detailsMarkdown?: string;
-  checklist: { id: string; text: string; completed: boolean }[];
   createdAt: string;
 };
 

@@ -1,9 +1,9 @@
 import type { Attachment, CreateTodoInput, DailyBucket, Todo } from "@/apis/todos.types";
 
 const initialTodos: Todo[] = [
-  { id: "upin-1", title: "Sketch the UPin home screen", completed: false, position: 0, bucket: "today", scheduledFor: "2026-08-27", bucketId: "morning-2026-08-27", checklist: [{ id: "upin-1-a", text: "Choose the first daily view", completed: true }], createdAt: "2026-08-27T00:00:00.000Z" },
-  { id: "upin-2", title: "Pick up cat food", completed: false, position: 0, bucket: "today", scheduledFor: "2026-08-27", bucketId: "later-2026-08-27", checklist: [], createdAt: "2026-08-27T00:00:00.000Z" },
-  { id: "upin-3", title: "Reply to Mara", completed: true, position: 1, bucket: "today", scheduledFor: "2026-08-27", bucketId: "morning-2026-08-27", checklist: [], createdAt: "2026-08-27T00:00:00.000Z" },
+  { id: "upin-1", title: "Sketch the UPin home screen", completed: false, position: 0, bucket: "today", scheduledFor: "2026-08-27", bucketId: "morning-2026-08-27", createdAt: "2026-08-27T00:00:00.000Z" },
+  { id: "upin-2", title: "Pick up cat food", completed: false, position: 0, bucket: "today", scheduledFor: "2026-08-27", bucketId: "later-2026-08-27", createdAt: "2026-08-27T00:00:00.000Z" },
+  { id: "upin-3", title: "Reply to Mara", completed: true, position: 1, bucket: "today", scheduledFor: "2026-08-27", bucketId: "morning-2026-08-27", createdAt: "2026-08-27T00:00:00.000Z" },
 ];
 
 const globalStore = globalThis as unknown as { upinTodos?: Todo[] };
@@ -27,12 +27,12 @@ export function reorderDemoBuckets(bucketIds: string[], date?: string) { const b
 export function listDemoTodos(bucket: Todo["bucket"], date?: string) { return todos.filter((todo) => bucket === "inbox" ? !todo.scheduledFor : todo.scheduledFor === date); }
 
 export function createDemoTodo(input: CreateTodoInput) {
-  const todo: Todo = { id: crypto.randomUUID(), title: input.title.trim(), bucket: input.bucket, scheduledFor: input.scheduledFor ?? null, bucketId: input.bucketId, completed: false, position: todos.filter((item) => item.bucketId === input.bucketId && item.scheduledFor === input.scheduledFor).length, checklist: [], createdAt: new Date().toISOString() };
+  const todo: Todo = { id: crypto.randomUUID(), title: input.title.trim(), bucket: input.bucket, scheduledFor: input.scheduledFor ?? null, bucketId: input.bucketId, completed: false, position: todos.filter((item) => item.bucketId === input.bucketId && item.scheduledFor === input.scheduledFor).length, createdAt: new Date().toISOString() };
   todos.unshift(todo);
   return todo;
 }
 
-export function updateDemoTodo(id: string, input: Partial<Pick<Todo, "completed" | "title" | "bucket" | "bucketId" | "notes" | "detailsMarkdown" | "checklist">>) {
+export function updateDemoTodo(id: string, input: Partial<Pick<Todo, "completed" | "title" | "bucket" | "bucketId" | "detailsMarkdown">>) {
   const todo = todos.find((candidate) => candidate.id === id);
   if (!todo) return null;
   Object.assign(todo, input);
