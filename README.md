@@ -49,6 +49,26 @@ pnpm db:migrate
 
 The named Docker volume `upin-postgres` keeps database data when the container is recreated. Back up both that database and `storage/attachments` before deployment.
 
+## Production deployment
+
+Pushing to `main` deploys to the existing droplet through GitHub Actions. The
+workflow runs `/var/www/upin/scripts/deploy-production.sh`, which fast-forwards
+the checkout, installs lockfile-defined dependencies, builds with the server's
+memory limit, applies outstanding Drizzle migrations, and restarts both `upin`
+and `upin-mcp`. It leaves `.env.local`, PostgreSQL data, and uploaded files
+untouched.
+
+Create these repository secrets under **Settings → Secrets and variables →
+Actions**:
+
+- `UPIN_DEPLOY_HOST`: `159.89.200.6`
+- `UPIN_DEPLOY_USER`: `root`
+- `UPIN_DEPLOY_SSH_KEY`: a private SSH key that is authorized on the droplet
+- `UPIN_DEPLOY_KNOWN_HOSTS`: the output of `ssh-keyscan -H 159.89.200.6`
+
+The deployment script refuses to proceed if tracked files on the server were
+edited manually, so it cannot silently overwrite a server-side change.
+
 ## Visual direction
 
 - Primary: apricot orange (`#F59E6B`; dark `#FFB58A`)

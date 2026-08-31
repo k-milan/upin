@@ -1,0 +1,31 @@
+name: Deploy production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: upin-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.UPIN_DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.UPIN_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy to the droplet
+        env:
+          DEPLOY_HOST: ${{ secrets.UPIN_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.UPIN_DEPLOY_USER }}
+        run: ssh -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" 'bash /var/www/upin/scripts/deploy-production.sh'
