@@ -28,4 +28,4 @@ jobs:
         env:
           DEPLOY_HOST: ${{ secrets.UPIN_DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.UPIN_DEPLOY_USER }}
-        run: ssh -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" 'cd /var/www/upin && git pull --ff-only origin main && bash scripts/deploy-production.sh'
+        run: ssh -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" 'git config --global --get-all safe.directory | grep -Fxq /var/www/upin || git config --global --add safe.directory /var/www/upin; cd /var/www/upin && git pull --ff-only origin main && bash scripts/deploy-production.sh'

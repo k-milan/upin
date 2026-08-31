@@ -8,6 +8,7 @@ APP_DIR="${UPIN_APP_DIR:-/var/www/upin}"
 APP_USER="${UPIN_APP_USER:-upin}"
 
 cd "$APP_DIR"
+git config --global --get-all safe.directory | grep -Fxq "$APP_DIR" || git config --global --add safe.directory "$APP_DIR"
 
 if [[ -n "$(git status --porcelain)" ]]; then
   echo "Refusing to deploy: $APP_DIR has uncommitted tracked changes."
