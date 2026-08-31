@@ -9,9 +9,12 @@ async function main() {
   const { tools } = await client.listTools();
   const names = tools.map((tool) => tool.name).sort();
   const expected = [
+    "carry_forward_tasks",
     "create_task",
+    "list_buckets",
     "list_inbox_tasks",
     "list_today_tasks",
+    "schedule_task",
     "set_task_completion",
     "update_task_details",
   ];

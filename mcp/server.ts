@@ -2,8 +2,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod/v4";
 
 import {
+  carryForwardPersistentTodos,
   createPersistentTodo,
+  listPersistentBuckets,
   listPersistentTodos,
+  schedulePersistentTodo,
   updatePersistentTodo,
 } from "../src/lib/todos/repository";
 
@@ -49,6 +52,21 @@ export function createUpinMcpServer() {
   );
 
   server.registerTool(
+    "list_buckets",
+    {
+      title: "List day buckets",
+      description: "List the available buckets for a specific UPin day.",
+      inputSchema: {
+        date: dateSchema.describe(
+          "Day whose buckets to list, formatted YYYY-MM-DD.",
+        ),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ date }) => result(await listPersistentBuckets(date)),
+  );
+
+  server.registerTool(
     "create_task",
     {
       title: "Create task",
@@ -60,17 +78,102 @@ export function createUpinMcpServer() {
           .describe(
             "Schedule this task for this day. Omit to add it to the inbox.",
           ),
+        bucketId: z
+          .string()
+          .uuid()
+          .optional()
+          .describe("Optional bucket on the selected day. Requires date."),
       },
       annotations: { readOnlyHint: false, openWorldHint: false },
     },
-    async ({ title, date }) =>
-      result(
-        await createPersistentTodo({
-          title,
-          bucket: date ? "today" : "inbox",
-          scheduledFor: date,
-        }),
-      ),
+    async ({ title, date, bucketId }) => {
+      if (bucketId && !date)
+        return failure("A bucket requires a scheduled date.");
+      try {
+        return result(
+          await createPersistentTodo({
+            title,
+            bucket: date ? "today" : "inbox",
+            scheduledFor: date,
+            bucketId,
+          }),
+        );
+      } catch (error) {
+        return failure(
+          error instanceof Error ? error.message : "Could not create task.",
+        );
+      }
+    },
+  );
+
+  server.registerTool(
+    "schedule_task",
+    {
+      title: "Schedule or unschedule task",
+      description:
+        "Move a task to a specific day and optional bucket, or move it to the Inbox by setting date to null.",
+      inputSchema: {
+        taskId: z.string().uuid().describe("UPin task ID."),
+        date: dateSchema
+          .nullable()
+          .describe("Target day, or null to move the task to Inbox."),
+        bucketId: z
+          .string()
+          .uuid()
+          .nullable()
+          .optional()
+          .describe("Optional bucket belonging to the target day."),
+      },
+      annotations: { readOnlyHint: false, openWorldHint: false },
+    },
+    async ({ taskId, date, bucketId }) => {
+      try {
+        const task = await schedulePersistentTodo(taskId, date, bucketId);
+        return task ? result(task) : failure("Task not found.");
+      } catch (error) {
+        return failure(
+          error instanceof Error ? error.message : "Could not schedule task.",
+        );
+      }
+    },
+  );
+
+  server.registerTool(
+    "carry_forward_tasks",
+    {
+      title: "Carry tasks forward",
+      description:
+        "Move selected unfinished tasks to a target day now, without waiting for the next-day review.",
+      inputSchema: {
+        taskIds: z
+          .array(z.string().uuid())
+          .min(1)
+          .describe("Unfinished task IDs to carry forward."),
+        targetDate: dateSchema.describe(
+          "Day to move the tasks to, formatted YYYY-MM-DD.",
+        ),
+        bucketId: z
+          .string()
+          .uuid()
+          .nullable()
+          .optional()
+          .describe("Optional bucket belonging to the target day."),
+      },
+      annotations: { readOnlyHint: false, openWorldHint: false },
+    },
+    async ({ taskIds, targetDate, bucketId }) => {
+      try {
+        return result(
+          await carryForwardPersistentTodos(taskIds, targetDate, bucketId),
+        );
+      } catch (error) {
+        return failure(
+          error instanceof Error
+            ? error.message
+            : "Could not carry tasks forward.",
+        );
+      }
+    },
   );
 
   server.registerTool(

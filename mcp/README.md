@@ -16,7 +16,7 @@ The local endpoint is `http://127.0.0.1:3333/mcp`. In a separate terminal, confi
 pnpm mcp:smoke
 ```
 
-The server exposes task-listing, task creation, completion, and Markdown-detail tools. It does not expose destructive deletion tools.
+The server exposes task and bucket listing, task creation, day/bucket scheduling, early carry-forward, completion, and Markdown-detail tools. Setting a task's schedule date to `null` moves it to the Inbox. It does not expose destructive deletion tools.
 
 ## Deployment
 

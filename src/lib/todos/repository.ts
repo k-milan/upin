@@ -10,7 +10,38 @@ function previousDay(day: string) { const date = new Date(`${day}T12:00:00Z`); d
 function mapTodo(todo: typeof todos.$inferSelect): Todo { return { id: todo.id, title: todo.title, completed: todo.completed, position: todo.position, bucket: todo.scheduledFor ? "today" : "inbox", scheduledFor: todo.scheduledFor, bucketId: todo.bucketId, detailsMarkdown: todo.detailsMarkdown, createdAt: todo.createdAt.toISOString() }; }
 
 export async function listPersistentTodos(bucket: Todo["bucket"], day = today()) { const db = dbOrThrow(); const rows = bucket === "inbox" ? await db.select().from(todos).where(isNull(todos.scheduledFor)).orderBy(asc(todos.completed), asc(todos.position)) : await db.select().from(todos).where(eq(todos.scheduledFor, day)).orderBy(asc(todos.completed), asc(todos.position)); return rows.map(mapTodo); }
-export async function createPersistentTodo(input: CreateTodoInput) { const db = dbOrThrow(); const [todo] = await db.insert(todos).values({ title: input.title.trim(), scheduledFor: input.bucket === "today" ? input.scheduledFor ?? today() : null, bucketId: input.bucketId ?? null }).returning(); return mapTodo(todo); }
+export async function createPersistentTodo(input: CreateTodoInput) {
+  const db = dbOrThrow();
+  const scheduledFor = input.bucket === "today" ? input.scheduledFor ?? today() : null;
+  if (input.bucketId) {
+    if (!scheduledFor) throw new Error("Inbox tasks cannot have a bucket.");
+    const [bucket] = await db.select({ id: dailyBuckets.id }).from(dailyBuckets).where(and(eq(dailyBuckets.id, input.bucketId), eq(dailyBuckets.date, scheduledFor))).limit(1);
+    if (!bucket) throw new Error("That bucket does not belong to the selected day.");
+  }
+  const [todo] = await db.insert(todos).values({ title: input.title.trim(), scheduledFor, bucketId: input.bucketId ?? null }).returning();
+  return mapTodo(todo);
+}
+export async function schedulePersistentTodo(id: string, scheduledFor: string | null, bucketId: string | null = null) {
+  const db = dbOrThrow();
+  if (bucketId) {
+    if (!scheduledFor) throw new Error("Inbox tasks cannot have a bucket.");
+    const [bucket] = await db.select({ id: dailyBuckets.id }).from(dailyBuckets).where(and(eq(dailyBuckets.id, bucketId), eq(dailyBuckets.date, scheduledFor))).limit(1);
+    if (!bucket) throw new Error("That bucket does not belong to the selected day.");
+  }
+  const destination = scheduledFor ? await db.select({ id: todos.id }).from(todos).where(and(eq(todos.scheduledFor, scheduledFor), bucketId ? eq(todos.bucketId, bucketId) : isNull(todos.bucketId))) : await db.select({ id: todos.id }).from(todos).where(isNull(todos.scheduledFor));
+  const [todo] = await db.update(todos).set({ scheduledFor, bucketId: scheduledFor ? bucketId : null, position: destination.filter((item) => item.id !== id).length }).where(eq(todos.id, id)).returning();
+  return todo ? mapTodo(todo) : null;
+}
+export async function carryForwardPersistentTodos(ids: string[], targetDate: string, bucketId: string | null = null) {
+  const moved = [];
+  for (const id of ids) {
+    const [current] = await dbOrThrow().select({ completed: todos.completed }).from(todos).where(eq(todos.id, id)).limit(1);
+    if (!current || current.completed) continue;
+    const todo = await schedulePersistentTodo(id, targetDate, bucketId);
+    if (todo) moved.push(todo);
+  }
+  return moved;
+}
 export async function updatePersistentTodo(id: string, input: Partial<Pick<Todo, "completed" | "title" | "bucket" | "bucketId" | "detailsMarkdown">>) { const db = dbOrThrow(); const [todo] = await db.update(todos).set({ title: input.title?.trim(), completed: input.completed, completedAt: input.completed === true ? new Date() : input.completed === false ? null : undefined, bucketId: input.bucketId, detailsMarkdown: input.detailsMarkdown, scheduledFor: input.bucket === "inbox" ? null : undefined }).where(eq(todos.id, id)).returning(); return todo ? mapTodo(todo) : null; }
 export async function deletePersistentTodo(id: string) { const db = dbOrThrow(); return db.transaction(async (tx) => { const relatedAttachments = await tx.select().from(attachments).where(eq(attachments.todoId, id)); const [todo] = await tx.delete(todos).where(eq(todos.id, id)).returning(); return todo ? { todo: mapTodo(todo), attachments: relatedAttachments } : null; }); }
 export async function listPersistentBuckets(day = today()): Promise<DailyBucket[]> { const db = dbOrThrow(); return db.select({ id: dailyBuckets.id, name: dailyBuckets.name, position: dailyBuckets.position }).from(dailyBuckets).where(eq(dailyBuckets.date, day)).orderBy(asc(dailyBuckets.position)); }

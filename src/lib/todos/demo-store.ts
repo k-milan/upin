@@ -27,6 +27,7 @@ export function reorderDemoBuckets(bucketIds: string[], date?: string) { const b
 export function listDemoTodos(bucket: Todo["bucket"], date?: string) { return todos.filter((todo) => bucket === "inbox" ? !todo.scheduledFor : todo.scheduledFor === date).sort((left, right) => Number(left.completed) - Number(right.completed) || left.position - right.position); }
 
 export function createDemoTodo(input: CreateTodoInput) {
+  if (input.bucketId && (input.bucket !== "today" || !demoDay(input.scheduledFor).some((bucket) => bucket.id === input.bucketId))) throw new Error("That bucket does not belong to the selected day.");
   const todo: Todo = { id: crypto.randomUUID(), title: input.title.trim(), bucket: input.bucket, scheduledFor: input.scheduledFor ?? null, bucketId: input.bucketId, completed: false, position: todos.filter((item) => item.bucketId === input.bucketId && item.scheduledFor === input.scheduledFor).length, createdAt: new Date().toISOString() };
   todos.unshift(todo);
   return todo;
@@ -36,6 +37,16 @@ export function updateDemoTodo(id: string, input: Partial<Pick<Todo, "completed"
   const todo = todos.find((candidate) => candidate.id === id);
   if (!todo) return null;
   Object.assign(todo, input);
+  return todo;
+}
+export function scheduleDemoTodo(id: string, scheduledFor: string | null, bucketId: string | null = null) {
+  if (bucketId && (!scheduledFor || !demoDay(scheduledFor).some((bucket) => bucket.id === bucketId))) throw new Error("That bucket does not belong to the selected day.");
+  const todo = todos.find((candidate) => candidate.id === id);
+  if (!todo) return null;
+  todo.scheduledFor = scheduledFor;
+  todo.bucket = scheduledFor ? "today" : "inbox";
+  todo.bucketId = scheduledFor ? bucketId : null;
+  todo.position = todos.filter((item) => item.id !== id && item.scheduledFor === scheduledFor && item.bucketId === todo.bucketId).length;
   return todo;
 }
 export function deleteDemoTodo(id: string) { const index = todos.findIndex((candidate) => candidate.id === id); if (index < 0) return null; const [todo] = todos.splice(index, 1); const relatedAttachments = demoAttachments.filter((attachment) => attachment.todoId === id); for (const attachment of relatedAttachments) demoAttachments.splice(demoAttachments.indexOf(attachment), 1); return { todo, attachments: relatedAttachments }; }

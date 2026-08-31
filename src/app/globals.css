@@ -71,3 +71,136 @@ body {
   color: var(--foreground);
   font-family: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif;
 }
+
+.markdown-block-content {
+  min-height: 16rem;
+  outline: none;
+  font-size: 0.9375rem;
+  line-height: 2rem;
+}
+
+.markdown-block-content > * + * {
+  margin-top: 0.25rem;
+}
+
+.markdown-block-content p.is-editor-empty:first-child::before {
+  color: color-mix(in srgb, var(--muted-foreground) 65%, transparent);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.markdown-block-content ul:not([data-type="taskList"]),
+.markdown-block-content ol {
+  padding-left: 1.5rem;
+}
+
+.markdown-block-content ul:not([data-type="taskList"]) {
+  list-style: disc;
+}
+
+.markdown-block-content ol {
+  list-style: decimal;
+}
+
+.markdown-block-content li > p {
+  margin: 0;
+}
+
+.markdown-block-content blockquote {
+  border-left: 3px solid color-mix(in srgb, var(--primary) 60%, var(--border));
+  margin: 0.375rem 0;
+  padding-left: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.markdown-block-content blockquote p {
+  margin: 0;
+}
+
+.markdown-block-content ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.markdown-block-content ul[data-type="taskList"] ul[data-type="taskList"] {
+  padding-left: 1.5rem;
+}
+
+.markdown-block-content ul[data-type="taskList"] > li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+}
+
+.markdown-block-content ul[data-type="taskList"] > li > label {
+  display: grid;
+  flex: none;
+  margin-top: 0.5rem;
+  place-items: center;
+}
+
+.markdown-block-content ul[data-type="taskList"] > li > label input {
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid color-mix(in srgb, var(--muted-foreground) 45%, transparent);
+  border-radius: 0.3rem;
+  background: var(--background);
+  cursor: pointer;
+}
+
+.markdown-block-content ul[data-type="taskList"] > li > label input:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='m2.25 6.25 2.25 2.25 5.25-5.25' fill='none' stroke='white' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.markdown-block-content ul[data-type="taskList"] > li > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.markdown-block-content
+  ul[data-type="taskList"]
+  > li[data-checked="true"]
+  > div
+  > p {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(
+    in srgb,
+    var(--muted-foreground) 50%,
+    transparent
+  );
+}
+
+.markdown-block-content code {
+  border-radius: 0.3rem;
+  background: var(--muted);
+  padding: 0.125rem 0.3rem;
+  color: var(--secondary-foreground);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.88em;
+}
+
+.markdown-block-content pre {
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  background: var(--muted);
+  padding: 0.625rem 0.75rem;
+  color: var(--secondary-foreground);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.5rem;
+  white-space: pre-wrap;
+}
+
+.markdown-block-content pre code {
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
