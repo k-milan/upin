@@ -46,17 +46,27 @@ function TaskComposer({ bucketId, day, composerId, activeComposerId, setActiveCo
   const createTodo = useCreateTodo();
   const [title, setTitle] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const queryClient = useQueryClient();
   const isOpen = activeComposerId === composerId;
   useEffect(() => { if (isOpen) window.requestAnimationFrame(() => inputRef.current?.focus()); }, [isOpen]);
-  function closeComposer() { setTitle(""); setActiveComposerId(null); }
+  useEffect(() => {
+    if (!isOpen) return;
+    function closeOnOutsidePointer(event: PointerEvent) {
+      if (formRef.current?.contains(event.target as Node)) return;
+      setTitle("");
+      setActiveComposerId(null);
+    }
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
+  }, [isOpen, setActiveComposerId]);
   function addTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!title.trim()) return;
     createTodo.mutate({ title, bucket: "today", bucketId: bucketId ?? undefined, scheduledFor: day }, { onSuccess: () => { queryClient.invalidateQueries({ queryKey: todosQueryOptions("today", day).queryKey }); setTitle(""); window.requestAnimationFrame(() => inputRef.current?.focus()); } });
   }
   if (!isOpen) return <Button type="button" variant="ghost" size="sm" onClick={() => setActiveComposerId(composerId)} className="my-1 rounded-lg px-1 text-muted-foreground hover:text-secondary-foreground"><Plus className="size-3.5" /> Add a task</Button>;
-  return <form onSubmit={addTask} className="my-2 flex items-center gap-2"><Input ref={inputRef} value={title} onChange={(event) => setTitle(event.target.value)} onBlur={closeComposer} placeholder="New task" aria-label="New task" className="h-8 rounded-lg border-border bg-background px-2.5 text-xs shadow-none placeholder:text-muted-foreground focus-visible:border-muted-foreground/40 focus-visible:ring-1 focus-visible:ring-muted-foreground/15" /><Button type="submit" variant="ghost" size="icon" onMouseDown={(event) => event.preventDefault()} aria-label="Add task" className="size-8 shrink-0 rounded-lg text-muted-foreground hover:text-secondary-foreground"><Check className="size-4" /></Button></form>;
+  return <form ref={formRef} onSubmit={addTask} className="my-2 flex items-center gap-2"><Input ref={inputRef} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="New task" aria-label="New task" className="h-8 rounded-lg border-border bg-background px-2.5 text-xs shadow-none placeholder:text-muted-foreground focus-visible:border-muted-foreground/40 focus-visible:ring-1 focus-visible:ring-muted-foreground/15" /><Button type="submit" variant="ghost" size="icon" onMouseDown={(event) => event.preventDefault()} aria-label="Add task" className="size-8 shrink-0 rounded-lg text-muted-foreground hover:text-secondary-foreground"><Check className="size-4" /></Button></form>;
 }
 
 function dateKey(date: Date) { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(date); }
