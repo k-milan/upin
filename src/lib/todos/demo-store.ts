@@ -16,18 +16,19 @@ function previousDay(day: string) { const date = new Date(`${day}T12:00:00Z`); d
 const bucketStore = globalThis as unknown as { upinBucketsByDate?: Record<string, DailyBucket[]> };
 const bucketDays = bucketStore.upinBucketsByDate ?? {};
 bucketStore.upinBucketsByDate = bucketDays;
-function demoDay(date?: string) { const key = date ?? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date()); bucketDays[key] ??= [{ id: `morning-${key}`, name: "Morning", position: 0 }, { id: `later-${key}`, name: "Later", position: 1 }]; return bucketDays[key]; }
+const demoBucketExclusions = new Set<string>();
+function demoDay(date?: string) { const key = date ?? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date()); bucketDays[key] ??= [{ id: `morning-${key}`, name: "Morning", position: 0, persistent: false }, { id: `later-${key}`, name: "Later", position: 1, persistent: false }]; return bucketDays[key]; }
 
-export function listDemoBuckets(date?: string) { return [...demoDay(date)].sort((a, b) => a.position - b.position); }
-export function createDemoBucket(name: string, date?: string) { const buckets = demoDay(date); const bucket = { id: crypto.randomUUID(), name: name.trim(), position: buckets.length }; buckets.push(bucket); return bucket; }
+export function listDemoBuckets(date?: string) { const key = date ?? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date()); const persistent = Object.values(bucketDays).flat().filter((bucket) => bucket.persistent && !demoBucketExclusions.has(`${bucket.id}:${key}`)); return [...demoDay(key), ...persistent.filter((bucket) => !demoDay(key).some((local) => local.id === bucket.id))].sort((a, b) => a.position - b.position); }
+export function createDemoBucket(name: string, date?: string, persistent = false) { const buckets = demoDay(date); const bucket = { id: crypto.randomUUID(), name: name.trim(), position: listDemoBuckets(date).length, persistent }; buckets.push(bucket); return bucket; }
 export function updateDemoBucket(id: string, name: string) { const bucket = Object.values(bucketDays).flat().find((candidate) => candidate.id === id); if (!bucket) return null; bucket.name = name.trim(); return bucket; }
-export function deleteDemoBucket(id: string, deleteTasks = false) { const day = Object.values(bucketDays).find((buckets) => buckets.some((bucket) => bucket.id === id)); const index = day?.findIndex((bucket) => bucket.id === id) ?? -1; if (!day || index < 0) return null; const [bucket] = day.splice(index, 1); const taskIds = deleteTasks ? todos.filter((todo) => todo.bucketId === id).map((todo) => todo.id) : []; const relatedAttachments = taskIds.length ? demoAttachments.filter((attachment) => taskIds.includes(attachment.todoId)) : []; if (deleteTasks) { for (const todo of todos.filter((item) => item.bucketId === id)) todos.splice(todos.indexOf(todo), 1); for (const attachment of relatedAttachments) demoAttachments.splice(demoAttachments.indexOf(attachment), 1); } else for (const todo of todos) if (todo.bucketId === id) todo.bucketId = null; return { bucket, attachments: relatedAttachments }; }
-export function reorderDemoBuckets(bucketIds: string[], date?: string) { const buckets = demoDay(date); bucketIds.forEach((id, position) => { const bucket = buckets.find((candidate) => candidate.id === id); if (bucket) bucket.position = position; }); return listDemoBuckets(date); }
+export function deleteDemoBucket(id: string, date: string, scope: "day" | "all") { const day = Object.values(bucketDays).find((buckets) => buckets.some((bucket) => bucket.id === id)); const index = day?.findIndex((bucket) => bucket.id === id) ?? -1; if (!day || index < 0) return null; const bucket = day[index]; if (bucket.persistent && scope === "day") { demoBucketExclusions.add(`${id}:${date}`); for (const todo of todos) if (todo.bucketId === id && todo.scheduledFor === date) todo.bucketId = null; } else { day.splice(index, 1); for (const todo of todos) if (todo.bucketId === id) todo.bucketId = null; } return { bucket, attachments: [] }; }
+export function reorderDemoBuckets(bucketIds: string[], date?: string) { const buckets = Object.values(bucketDays).flat(); bucketIds.forEach((id, position) => { const bucket = buckets.find((candidate) => candidate.id === id); if (bucket) bucket.position = position; }); return listDemoBuckets(date); }
 
 export function listDemoTodos(bucket: Todo["bucket"], date?: string) { return todos.filter((todo) => bucket === "inbox" ? !todo.scheduledFor : todo.scheduledFor === date).sort((left, right) => Number(left.completed) - Number(right.completed) || left.position - right.position); }
 
 export function createDemoTodo(input: CreateTodoInput) {
-  if (input.bucketId && (input.bucket !== "today" || !demoDay(input.scheduledFor).some((bucket) => bucket.id === input.bucketId))) throw new Error("That bucket does not belong to the selected day.");
+  if (input.bucketId && (input.bucket !== "today" || !listDemoBuckets(input.scheduledFor).some((bucket) => bucket.id === input.bucketId))) throw new Error("That bucket does not belong to the selected day.");
   const todo: Todo = { id: crypto.randomUUID(), title: input.title.trim(), bucket: input.bucket, scheduledFor: input.scheduledFor ?? null, bucketId: input.bucketId, completed: false, position: todos.filter((item) => item.bucketId === input.bucketId && item.scheduledFor === input.scheduledFor).length, createdAt: new Date().toISOString() };
   todos.unshift(todo);
   return todo;
@@ -40,7 +41,7 @@ export function updateDemoTodo(id: string, input: Partial<Pick<Todo, "completed"
   return todo;
 }
 export function scheduleDemoTodo(id: string, scheduledFor: string | null, bucketId: string | null = null) {
-  if (bucketId && (!scheduledFor || !demoDay(scheduledFor).some((bucket) => bucket.id === bucketId))) throw new Error("That bucket does not belong to the selected day.");
+  if (bucketId && (!scheduledFor || !listDemoBuckets(scheduledFor).some((bucket) => bucket.id === bucketId))) throw new Error("That bucket does not belong to the selected day.");
   const todo = todos.find((candidate) => candidate.id === id);
   if (!todo) return null;
   todo.scheduledFor = scheduledFor;

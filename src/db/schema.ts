@@ -1,8 +1,11 @@
-import { boolean, date, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, date, integer, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const dailyBuckets = pgTable("daily_buckets", {
-  id: uuid("id").defaultRandom().primaryKey(), date: date("date").notNull(), name: text("name").notNull(), position: integer("position").notNull(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  id: uuid("id").defaultRandom().primaryKey(), date: date("date").notNull(), name: text("name").notNull(), position: integer("position").notNull(), persistent: boolean("persistent").notNull().default(false), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+export const bucketExclusions = pgTable("bucket_exclusions", {
+  bucketId: uuid("bucket_id").notNull().references(() => dailyBuckets.id, { onDelete: "cascade" }), date: date("date").notNull(),
+}, (table) => [primaryKey({ columns: [table.bucketId, table.date] })]);
 export const todos = pgTable("todos", {
   id: uuid("id").defaultRandom().primaryKey(), title: text("title").notNull(), scheduledFor: date("scheduled_for"), bucketId: uuid("bucket_id").references(() => dailyBuckets.id, { onDelete: "set null" }), position: integer("position").notNull().default(0), completed: boolean("completed").notNull().default(false), detailsMarkdown: text("details_markdown").notNull().default(""), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), completedAt: timestamp("completed_at", { withTimezone: true }),
 });

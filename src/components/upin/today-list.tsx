@@ -18,6 +18,7 @@ import {
   Download,
   GripVertical,
   Inbox,
+  MoreVertical,
   Moon,
   Paperclip,
   PawPrint,
@@ -41,6 +42,13 @@ import type { Todo } from "@/apis/todos.types";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { MarkdownBlockEditor } from "@/components/upin/markdown-block-editor";
 import { TaskScheduleControls } from "@/components/upin/task-schedule-controls";
 import {
@@ -559,12 +567,15 @@ export function TodayList() {
   );
   const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
   const [newBucketName, setNewBucketName] = useState("");
+  const [newBucketPersistent, setNewBucketPersistent] = useState(true);
   const [isAddingBucket, setIsAddingBucket] = useState(false);
   const [activeComposerId, setActiveComposerId] = useState<string | null>(null);
   const [bucketToDelete, setBucketToDelete] = useState<{
     id: string;
     name: string;
     taskCount: number;
+    persistent: boolean;
+    scope: "day" | "all";
   } | null>(null);
   const grouped = useMemo(
     () =>
@@ -585,7 +596,7 @@ export function TodayList() {
     event.preventDefault();
     if (newBucketName.trim())
       createBucket.mutate(
-        { name: newBucketName, date: day },
+        { name: newBucketName, date: day, persistent: newBucketPersistent },
         {
           onSuccess: () => {
             setNewBucketName("");
@@ -757,6 +768,17 @@ export function TodayList() {
                     aria-label="New bucket name"
                     className="h-8 w-28 rounded-lg border-border bg-background px-2 text-xs shadow-none"
                   />
+                  <select
+                    value={newBucketPersistent ? "all" : "day"}
+                    onChange={(event) =>
+                      setNewBucketPersistent(event.target.value === "all")
+                    }
+                    aria-label="Bucket availability"
+                    className="h-8 rounded-lg border border-input bg-background px-2 text-xs outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                  >
+                    <option value="all">Every day</option>
+                    <option value="day">This day</option>
+                  </select>
                   <Button
                     type="submit"
                     variant="ghost"
@@ -808,22 +830,63 @@ export function TodayList() {
                                 className="h-9 flex-1 rounded-xl border-0 !bg-background px-3 text-xs font-semibold uppercase tracking-[0.14em] text-secondary-foreground shadow-none hover:!bg-muted/60 focus-visible:!bg-card focus-visible:ring-1"
                               />
                               <div className="flex shrink-0 items-center gap-1">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon-xs"
-                                  onClick={() =>
-                                    setBucketToDelete({
-                                      id: bucket.id,
-                                      name: bucket.name,
-                                      taskCount: bucketTodos.length,
-                                    })
-                                  }
-                                  aria-label={`Delete ${bucket.name} bucket`}
-                                  className="text-muted-foreground hover:text-destructive"
-                                >
-                                  <Trash2 className="size-3.5" />
-                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger
+                                    render={
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon-xs"
+                                        aria-label={`${bucket.name} bucket menu`}
+                                        className="text-muted-foreground"
+                                      />
+                                    }
+                                  >
+                                    <MoreVertical className="size-3.5" />
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent
+                                    align="end"
+                                    className="w-48"
+                                  >
+                                    {bucket.persistent && (
+                                      <>
+                                        <DropdownMenuItem
+                                          onClick={() =>
+                                            setBucketToDelete({
+                                              id: bucket.id,
+                                              name: bucket.name,
+                                              taskCount: bucketTodos.length,
+                                              persistent: true,
+                                              scope: "day",
+                                            })
+                                          }
+                                        >
+                                          Remove from this day
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                      </>
+                                    )}
+                                    <DropdownMenuItem
+                                      variant="destructive"
+                                      onClick={() =>
+                                        setBucketToDelete({
+                                          id: bucket.id,
+                                          name: bucket.name,
+                                          taskCount: bucketTodos.length,
+                                          persistent: bucket.persistent,
+                                          scope: bucket.persistent
+                                            ? "all"
+                                            : "day",
+                                        })
+                                      }
+                                    >
+                                      <Trash2 className="size-3.5" />
+                                      {bucket.persistent
+                                        ? "Delete bucket everywhere"
+                                        : "Delete for this day"}
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                                 {dragHandle}
                               </div>
                             </div>
@@ -900,7 +963,7 @@ export function TodayList() {
       <AnimatePresence>
         {selectedTodo && (
           <TaskDetailsPanel
-            key="task-details"
+            key={selectedTodo.id}
             todo={selectedTodo}
             day={day}
             onClose={() => setSelectedTodo(null)}
@@ -915,11 +978,17 @@ export function TodayList() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete “{bucketToDelete?.name}”?</DialogTitle>
+            <DialogTitle>
+              {bucketToDelete?.scope === "day" && bucketToDelete.persistent
+                ? `Remove “${bucketToDelete.name}” from this day?`
+                : `Delete “${bucketToDelete?.name}”?`}
+            </DialogTitle>
             <DialogDescription>
-              {bucketToDelete?.taskCount
-                ? `This bucket contains ${bucketToDelete.taskCount} task${bucketToDelete.taskCount === 1 ? "" : "s"}. Choose what happens to ${bucketToDelete.taskCount === 1 ? "it" : "them"}.`
-                : "This bucket has no tasks."}
+              {bucketToDelete?.scope === "all"
+                ? "This removes the bucket from every day. Its tasks will remain and move to Unbucketed."
+                : bucketToDelete?.taskCount
+                  ? `${bucketToDelete.taskCount} task${bucketToDelete.taskCount === 1 ? "" : "s"} on this day will move to Unbucketed.`
+                  : "The bucket will no longer appear on this day."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -930,20 +999,6 @@ export function TodayList() {
             >
               Cancel
             </Button>
-            {bucketToDelete?.taskCount ? (
-              <Button
-                type="button"
-                disabled={deleteBucket.isPending}
-                onClick={() =>
-                  deleteBucket.mutate(
-                    { id: bucketToDelete.id },
-                    { onSuccess: () => setBucketToDelete(null) },
-                  )
-                }
-              >
-                Move to Unbucketed
-              </Button>
-            ) : null}
             <Button
               type="button"
               variant="destructive"
@@ -951,13 +1006,17 @@ export function TodayList() {
               onClick={() =>
                 bucketToDelete &&
                 deleteBucket.mutate(
-                  { id: bucketToDelete.id, deleteTasks: true },
+                  {
+                    id: bucketToDelete.id,
+                    date: day,
+                    scope: bucketToDelete.scope,
+                  },
                   { onSuccess: () => setBucketToDelete(null) },
                 )
               }
             >
-              {bucketToDelete?.taskCount
-                ? "Delete bucket and tasks"
+              {bucketToDelete?.scope === "day" && bucketToDelete.persistent
+                ? "Remove from this day"
                 : "Delete bucket"}
             </Button>
           </DialogFooter>

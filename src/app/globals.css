@@ -72,6 +72,10 @@ body {
   font-family: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
 .markdown-block-content {
   min-height: 16rem;
   outline: none;

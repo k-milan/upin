@@ -27,7 +27,12 @@ export type TaskScheduleInput = {
   bucketId?: string | null;
 };
 
-export type DailyBucket = { id: string; name: string; position: number };
+export type DailyBucket = {
+  id: string;
+  name: string;
+  position: number;
+  persistent: boolean;
+};
 export type CarryReview = {
   reviewed: boolean;
   previousDate: string;
