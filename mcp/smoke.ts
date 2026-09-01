@@ -11,6 +11,7 @@ async function main() {
   const expected = [
     "carry_forward_tasks",
     "create_task",
+    "delete_task",
     "list_buckets",
     "list_inbox_tasks",
     "list_today_tasks",

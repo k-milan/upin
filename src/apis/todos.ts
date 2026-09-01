@@ -8,9 +8,10 @@ import type {
 export async function fetchTodos(
   bucket: Todo["bucket"] = "today",
   date?: string,
+  archived = false,
 ) {
   const response = await http.get<Todo[]>(
-    `/v1/todos?bucket=${bucket}${date ? `&date=${date}` : ""}`,
+    `/v1/todos?bucket=${bucket}${date ? `&date=${date}` : ""}${archived ? "&archived=true" : ""}`,
   );
   return response.data;
 }

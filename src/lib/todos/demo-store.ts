@@ -25,7 +25,16 @@ export function updateDemoBucket(id: string, name: string) { const bucket = Obje
 export function deleteDemoBucket(id: string, date: string, scope: "day" | "all") { const day = Object.values(bucketDays).find((buckets) => buckets.some((bucket) => bucket.id === id)); const index = day?.findIndex((bucket) => bucket.id === id) ?? -1; if (!day || index < 0) return null; const bucket = day[index]; if (bucket.persistent && scope === "day") { demoBucketExclusions.add(`${id}:${date}`); for (const todo of todos) if (todo.bucketId === id && todo.scheduledFor === date) todo.bucketId = null; } else { day.splice(index, 1); for (const todo of todos) if (todo.bucketId === id) todo.bucketId = null; } return { bucket, attachments: [] }; }
 export function reorderDemoBuckets(bucketIds: string[], date?: string) { const buckets = Object.values(bucketDays).flat(); bucketIds.forEach((id, position) => { const bucket = buckets.find((candidate) => candidate.id === id); if (bucket) bucket.position = position; }); return listDemoBuckets(date); }
 
-export function listDemoTodos(bucket: Todo["bucket"], date?: string) { return todos.filter((todo) => bucket === "inbox" ? !todo.scheduledFor : todo.scheduledFor === date).sort((left, right) => Number(left.completed) - Number(right.completed) || left.position - right.position); }
+export function listDemoTodos(bucket: Todo["bucket"], date?: string, archived = false) {
+  const day = date ?? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date());
+  const dayStart = new Date(`${day}T00:00:00+08:00`).getTime();
+  return todos.filter((todo) => {
+    if (bucket !== "inbox") return todo.scheduledFor === date;
+    if (todo.scheduledFor) return false;
+    const completedBeforeToday = todo.completed && (!todo.completedAt || new Date(todo.completedAt).getTime() < dayStart);
+    return archived ? completedBeforeToday : !completedBeforeToday;
+  }).sort((left, right) => Number(left.completed) - Number(right.completed) || left.position - right.position);
+}
 
 export function createDemoTodo(input: CreateTodoInput) {
   if (input.bucketId && (input.bucket !== "today" || !listDemoBuckets(input.scheduledFor).some((bucket) => bucket.id === input.bucketId))) throw new Error("That bucket does not belong to the selected day.");
@@ -38,6 +47,8 @@ export function updateDemoTodo(id: string, input: Partial<Pick<Todo, "completed"
   const todo = todos.find((candidate) => candidate.id === id);
   if (!todo) return null;
   Object.assign(todo, input);
+  if (input.completed === true) todo.completedAt = new Date().toISOString();
+  if (input.completed === false) todo.completedAt = null;
   return todo;
 }
 export function scheduleDemoTodo(id: string, scheduledFor: string | null, bucketId: string | null = null) {

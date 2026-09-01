@@ -18,13 +18,20 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const bucket = url.searchParams.get("bucket") === "inbox" ? "inbox" : "today";
+  const archived =
+    bucket === "inbox" && url.searchParams.get("archived") === "true";
   return Response.json(
     process.env.DATABASE_URL
       ? await listPersistentTodos(
           bucket,
           url.searchParams.get("date") ?? undefined,
+          archived,
         )
-      : listDemoTodos(bucket, url.searchParams.get("date") ?? undefined),
+      : listDemoTodos(
+          bucket,
+          url.searchParams.get("date") ?? undefined,
+          archived,
+        ),
   );
 }
 

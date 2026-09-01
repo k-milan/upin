@@ -8,6 +8,7 @@ export type Todo = {
   scheduledFor?: string | null;
   detailsMarkdown?: string;
   createdAt: string;
+  completedAt?: string | null;
 };
 
 export type Attachment = {

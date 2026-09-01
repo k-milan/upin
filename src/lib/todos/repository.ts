@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lt, or } from "drizzle-orm";
 
 import type { Attachment, CreateTodoInput, DailyBucket, Todo } from "@/apis/todos.types";
 import { getDatabase } from "@/db";
@@ -7,9 +7,22 @@ import { attachments, bucketExclusions, dailyBuckets, dailyReviews, todos } from
 function dbOrThrow() { const db = getDatabase(); if (!db) throw new Error("DATABASE_URL is not configured."); return db; }
 function today() { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date()); }
 function previousDay(day: string) { const date = new Date(`${day}T12:00:00Z`); date.setUTCDate(date.getUTCDate() - 1); return date.toISOString().slice(0, 10); }
-function mapTodo(todo: typeof todos.$inferSelect): Todo { return { id: todo.id, title: todo.title, completed: todo.completed, position: todo.position, bucket: todo.scheduledFor ? "today" : "inbox", scheduledFor: todo.scheduledFor, bucketId: todo.bucketId, detailsMarkdown: todo.detailsMarkdown, createdAt: todo.createdAt.toISOString() }; }
+function startOfManilaDay(day: string) { return new Date(`${day}T00:00:00+08:00`); }
+function mapTodo(todo: typeof todos.$inferSelect): Todo { return { id: todo.id, title: todo.title, completed: todo.completed, position: todo.position, bucket: todo.scheduledFor ? "today" : "inbox", scheduledFor: todo.scheduledFor, bucketId: todo.bucketId, detailsMarkdown: todo.detailsMarkdown, createdAt: todo.createdAt.toISOString(), completedAt: todo.completedAt?.toISOString() ?? null }; }
 
-export async function listPersistentTodos(bucket: Todo["bucket"], day = today()) { const db = dbOrThrow(); const rows = bucket === "inbox" ? await db.select().from(todos).where(isNull(todos.scheduledFor)).orderBy(asc(todos.completed), asc(todos.position)) : await db.select().from(todos).where(eq(todos.scheduledFor, day)).orderBy(asc(todos.completed), asc(todos.position)); return rows.map(mapTodo); }
+export async function listPersistentTodos(bucket: Todo["bucket"], day = today(), archived = false) {
+  const db = dbOrThrow();
+  if (bucket === "inbox") {
+    const dayStart = startOfManilaDay(day);
+    const archiveFilter = archived
+      ? and(eq(todos.completed, true), or(lt(todos.completedAt, dayStart), isNull(todos.completedAt)))
+      : or(eq(todos.completed, false), gte(todos.completedAt, dayStart));
+    const rows = await db.select().from(todos).where(and(isNull(todos.scheduledFor), archiveFilter)).orderBy(asc(todos.completed), asc(todos.position));
+    return rows.map(mapTodo);
+  }
+  const rows = await db.select().from(todos).where(eq(todos.scheduledFor, day)).orderBy(asc(todos.completed), asc(todos.position));
+  return rows.map(mapTodo);
+}
 export async function createPersistentTodo(input: CreateTodoInput) {
   const db = dbOrThrow();
   const scheduledFor = input.bucket === "today" ? input.scheduledFor ?? today() : null;

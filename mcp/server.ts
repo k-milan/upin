@@ -4,11 +4,13 @@ import * as z from "zod/v4";
 import {
   carryForwardPersistentTodos,
   createPersistentTodo,
+  deletePersistentTodo,
   listPersistentBuckets,
   listPersistentTodos,
   schedulePersistentTodo,
   updatePersistentTodo,
 } from "../src/lib/todos/repository";
+import { removeAttachment } from "../src/lib/attachments/storage";
 
 const dateSchema = z.string().date();
 
@@ -135,6 +137,36 @@ export function createUpinMcpServer() {
           error instanceof Error ? error.message : "Could not schedule task.",
         );
       }
+    },
+  );
+
+  server.registerTool(
+    "delete_task",
+    {
+      title: "Delete task",
+      description:
+        "Permanently delete a UPin task and all of its attachments. Only call this after the user has explicitly confirmed deletion.",
+      inputSchema: {
+        taskId: z.string().uuid().describe("UPin task ID to permanently delete."),
+        confirm: z
+          .literal(true)
+          .describe("Must be true to confirm permanent deletion."),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ taskId }) => {
+      const deleted = await deletePersistentTodo(taskId);
+      if (!deleted) return failure("Task not found.");
+      await Promise.all(
+        deleted.attachments.map((attachment) =>
+          removeAttachment(attachment.storageKey),
+        ),
+      );
+      return result({ deleted: true, task: deleted.todo });
     },
   );
 
