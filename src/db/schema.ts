@@ -1,7 +1,7 @@
 import { boolean, date, integer, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const dailyBuckets = pgTable("daily_buckets", {
-  id: uuid("id").defaultRandom().primaryKey(), date: date("date").notNull(), name: text("name").notNull(), position: integer("position").notNull(), persistent: boolean("persistent").notNull().default(false), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  id: uuid("id").defaultRandom().primaryKey(), date: date("date").notNull(), name: text("name").notNull(), position: integer("position").notNull(), persistent: boolean("persistent").notNull().default(false), endsBefore: date("ends_before"), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 export const bucketExclusions = pgTable("bucket_exclusions", {
   bucketId: uuid("bucket_id").notNull().references(() => dailyBuckets.id, { onDelete: "cascade" }), date: date("date").notNull(),

@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNull, lt, or } from "drizzle-orm";
 
 import type { Attachment, CreateTodoInput, DailyBucket, Todo } from "@/apis/todos.types";
 import { getDatabase } from "@/db";
@@ -60,7 +60,7 @@ export async function deletePersistentTodo(id: string) { const db = dbOrThrow();
 export async function listPersistentBuckets(day = today()): Promise<DailyBucket[]> {
   const db = dbOrThrow();
   const [rows, exclusions] = await Promise.all([
-    db.select({ id: dailyBuckets.id, name: dailyBuckets.name, position: dailyBuckets.position, persistent: dailyBuckets.persistent }).from(dailyBuckets).where(or(eq(dailyBuckets.date, day), eq(dailyBuckets.persistent, true))).orderBy(asc(dailyBuckets.position)),
+    db.select({ id: dailyBuckets.id, name: dailyBuckets.name, position: dailyBuckets.position, persistent: dailyBuckets.persistent }).from(dailyBuckets).where(or(and(eq(dailyBuckets.persistent, false), eq(dailyBuckets.date, day)), and(eq(dailyBuckets.persistent, true), or(isNull(dailyBuckets.endsBefore), gt(dailyBuckets.endsBefore, day))))).orderBy(asc(dailyBuckets.position)),
     db.select({ bucketId: bucketExclusions.bucketId }).from(bucketExclusions).where(eq(bucketExclusions.date, day)),
   ]);
   const excluded = new Set(exclusions.map((item) => item.bucketId));
@@ -68,7 +68,7 @@ export async function listPersistentBuckets(day = today()): Promise<DailyBucket[
 }
 export async function createPersistentBucket(name: string, day = today(), persistent = false): Promise<DailyBucket> { const db = dbOrThrow(); const existing = await listPersistentBuckets(day); const [bucket] = await db.insert(dailyBuckets).values({ date: day, name: name.trim(), position: existing.length, persistent }).returning({ id: dailyBuckets.id, name: dailyBuckets.name, position: dailyBuckets.position, persistent: dailyBuckets.persistent }); return bucket; }
 export async function updatePersistentBucket(id: string, name: string) { const db = dbOrThrow(); const [bucket] = await db.update(dailyBuckets).set({ name: name.trim() }).where(eq(dailyBuckets.id, id)).returning({ id: dailyBuckets.id, name: dailyBuckets.name, position: dailyBuckets.position, persistent: dailyBuckets.persistent }); return bucket ?? null; }
-export async function deletePersistentBucket(id: string, day: string, scope: "day" | "all") {
+export async function deletePersistentBucket(id: string, day: string, scope: "day" | "future" | "all") {
   const db = dbOrThrow();
   return db.transaction(async (tx) => {
     const [bucket] = await tx.select({ id: dailyBuckets.id, name: dailyBuckets.name, position: dailyBuckets.position, persistent: dailyBuckets.persistent }).from(dailyBuckets).where(eq(dailyBuckets.id, id));
@@ -76,6 +76,9 @@ export async function deletePersistentBucket(id: string, day: string, scope: "da
     if (bucket.persistent && scope === "day") {
       await tx.update(todos).set({ bucketId: null }).where(and(eq(todos.bucketId, id), eq(todos.scheduledFor, day)));
       await tx.insert(bucketExclusions).values({ bucketId: id, date: day }).onConflictDoNothing();
+    } else if (bucket.persistent && scope === "future") {
+      await tx.update(todos).set({ bucketId: null }).where(and(eq(todos.bucketId, id), gte(todos.scheduledFor, day)));
+      await tx.update(dailyBuckets).set({ endsBefore: day }).where(eq(dailyBuckets.id, id));
     } else {
       await tx.update(todos).set({ bucketId: null }).where(eq(todos.bucketId, id));
       await tx.delete(dailyBuckets).where(eq(dailyBuckets.id, id));

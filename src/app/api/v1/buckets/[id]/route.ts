@@ -8,7 +8,7 @@ import {
 const schema = z.object({ name: z.string().trim().min(1).max(80) });
 const deleteSchema = z.object({
   date: z.string().date(),
-  scope: z.enum(["day", "all"]),
+  scope: z.enum(["day", "future", "all"]),
 });
 export async function PATCH(
   request: Request,

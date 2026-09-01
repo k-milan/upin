@@ -339,6 +339,13 @@ function dayHeading(date: string) {
     day: "numeric",
   }).format(new Date(`${date}T12:00:00`));
 }
+function orderedTodos(items: Todo[]) {
+  return [...items].sort(
+    (left, right) =>
+      Number(left.completed) - Number(right.completed) ||
+      left.position - right.position,
+  );
+}
 
 function TaskMarkdownEditor({ todo }: { todo: Todo }) {
   const { mutate: saveTodo } = useUpdateTodo();
@@ -462,13 +469,6 @@ function TaskDetailsPanel({
   const reduceMotion = useReducedMotion();
   const updateTodo = useUpdateTodo();
   const deleteTodo = useDeleteTodo();
-  const [title, setTitle] = useState(todo.title);
-  function saveTitle() {
-    const nextTitle = title.trim();
-    if (nextTitle && nextTitle !== todo.title)
-      updateTodo.mutate({ id: todo.id, input: { title: nextTitle } });
-    else if (!nextTitle) setTitle(todo.title);
-  }
   return (
     <motion.aside
       initial={reduceMotion ? false : { opacity: 0, x: 24 }}
@@ -481,22 +481,24 @@ function TaskDetailsPanel({
       className="fixed inset-0 z-30 flex min-h-screen bg-background p-0 md:sticky md:top-0 md:z-0 md:h-screen md:w-1/2 md:bg-transparent md:p-5"
     >
       <div className="flex min-h-0 w-full flex-1 flex-col bg-card px-6 py-6 md:rounded-3xl md:px-9 md:py-8 md:shadow-[0_18px_45px_rgba(77,48,31,0.10)]">
-        <motion.div
-          key={todo.id}
-          initial={reduceMotion ? false : { opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reduceMotion ? 0.01 : 0.22, ease: "easeOut" }}
-          className="flex min-h-0 flex-1 flex-col"
-        >
+        <div className="flex min-h-0 flex-1 flex-col">
           <header className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-secondary-foreground">
                 Task details
               </p>
               <Input
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                onBlur={saveTitle}
+                key={todo.id}
+                defaultValue={todo.title}
+                onBlur={(event) => {
+                  const nextTitle = event.target.value.trim();
+                  if (nextTitle && nextTitle !== todo.title)
+                    updateTodo.mutate({
+                      id: todo.id,
+                      input: { title: nextTitle },
+                    });
+                  else if (!nextTitle) event.currentTarget.value = todo.title;
+                }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") event.currentTarget.blur();
                 }}
@@ -533,13 +535,14 @@ function TaskDetailsPanel({
             </Button>
           </header>
           <TaskScheduleControls
+            key={todo.id}
             todo={todo}
             onScheduled={(scheduledTodo) => {
               if (scheduledTodo.scheduledFor !== day) onClose();
             }}
           />
           <TaskMarkdownEditor key={todo.id} todo={todo} />
-        </motion.div>
+        </div>
       </div>
     </motion.aside>
   );
@@ -567,7 +570,9 @@ export function TodayList() {
   );
   const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
   const [newBucketName, setNewBucketName] = useState("");
-  const [newBucketPersistent, setNewBucketPersistent] = useState(true);
+  const [bucketNameToCreate, setBucketNameToCreate] = useState<string | null>(
+    null,
+  );
   const [isAddingBucket, setIsAddingBucket] = useState(false);
   const [activeComposerId, setActiveComposerId] = useState<string | null>(null);
   const [bucketToDelete, setBucketToDelete] = useState<{
@@ -575,31 +580,36 @@ export function TodayList() {
     name: string;
     taskCount: number;
     persistent: boolean;
-    scope: "day" | "all";
+    scope: "day" | "future" | "all";
   } | null>(null);
   const grouped = useMemo(
     () =>
       new Map(
         buckets.map((bucket) => [
           bucket.id,
-          todos.filter((todo) => todo.bucketId === bucket.id),
+          orderedTodos(todos.filter((todo) => todo.bucketId === bucket.id)),
         ]),
       ),
     [buckets, todos],
   );
   const unbucketedTodos = useMemo(
-    () => todos.filter((todo) => !todo.bucketId),
+    () => orderedTodos(todos.filter((todo) => !todo.bucketId)),
     [todos],
   );
 
   function addBucket(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (newBucketName.trim())
+    const name = newBucketName.trim();
+    if (name) setBucketNameToCreate(name);
+  }
+  function createBucketWithScope(persistent: boolean) {
+    if (bucketNameToCreate)
       createBucket.mutate(
-        { name: newBucketName, date: day, persistent: newBucketPersistent },
+        { name: bucketNameToCreate, date: day, persistent },
         {
           onSuccess: () => {
             setNewBucketName("");
+            setBucketNameToCreate(null);
             setIsAddingBucket(false);
           },
         },
@@ -640,25 +650,45 @@ export function TodayList() {
         ? null
         : buckets.some((bucket) => bucket.id === event.over?.id)
           ? String(event.over.id)
-          : targetTask?.bucketId;
+          : targetTask
+            ? (targetTask.bucketId ?? null)
+            : undefined;
     if (!task || destination === undefined || targetTask?.id === task.id)
       return;
-    const destinationItems = todos.filter(
-      (todo) => todo.id !== task.id && todo.bucketId === destination,
+    const sourceBucket = task.bucketId ?? null;
+    const sameBucket = sourceBucket === destination;
+    const destinationItems = orderedTodos(
+      todos.filter((todo) => (todo.bucketId ?? null) === destination),
     );
-    const targetIndex = targetTask
-      ? destinationItems.findIndex((todo) => todo.id === targetTask.id)
-      : destinationItems.length;
-    destinationItems.splice(
-      targetIndex < 0 ? destinationItems.length : targetIndex,
-      0,
-      { ...task, bucketId: destination },
-    );
+    if (sameBucket) {
+      const fromIndex = destinationItems.findIndex(
+        (todo) => todo.id === task.id,
+      );
+      const toIndex = targetTask
+        ? destinationItems.findIndex((todo) => todo.id === targetTask.id)
+        : destinationItems.length - 1;
+      if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
+      const [movedTask] = destinationItems.splice(fromIndex, 1);
+      destinationItems.splice(toIndex, 0, movedTask);
+    } else {
+      const targetIndex = targetTask
+        ? destinationItems.findIndex((todo) => todo.id === targetTask.id)
+        : destinationItems.length;
+      destinationItems.splice(
+        targetIndex < 0 ? destinationItems.length : targetIndex,
+        0,
+        { ...task, bucketId: destination },
+      );
+    }
     const sourceItems =
-      task.bucketId === destination
+      sameBucket
         ? []
-        : todos.filter(
-            (todo) => todo.id !== task.id && todo.bucketId === task.bucketId,
+        : orderedTodos(
+            todos.filter(
+              (todo) =>
+                todo.id !== task.id &&
+                (todo.bucketId ?? null) === sourceBucket,
+            ),
           );
     const changed = [
       ...sourceItems.map((todo, position) => ({ ...todo, position })),
@@ -682,9 +712,7 @@ export function TodayList() {
   return (
     <div className="min-h-screen md:flex">
       <CarryReviewDialog date={day} isToday={day === dateKey(new Date())} />
-      <motion.section
-        layout
-        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      <section
         className={cn(
           "min-w-0 flex-1 px-5 pb-16 pt-10 sm:pt-16",
           selectedTodo && "md:max-w-[50%]",
@@ -763,22 +791,29 @@ export function TodayList() {
                     autoFocus
                     value={newBucketName}
                     onChange={(event) => setNewBucketName(event.target.value)}
-                    onBlur={() => !newBucketName && setIsAddingBucket(false)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") {
+                        setNewBucketName("");
+                        setIsAddingBucket(false);
+                      }
+                    }}
                     placeholder="Bucket name"
                     aria-label="New bucket name"
                     className="h-8 w-28 rounded-lg border-border bg-background px-2 text-xs shadow-none"
                   />
-                  <select
-                    value={newBucketPersistent ? "all" : "day"}
-                    onChange={(event) =>
-                      setNewBucketPersistent(event.target.value === "all")
-                    }
-                    aria-label="Bucket availability"
-                    className="h-8 rounded-lg border border-input bg-background px-2 text-xs outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setNewBucketName("");
+                      setIsAddingBucket(false);
+                    }}
+                    aria-label="Cancel adding bucket"
+                    className="size-8 rounded-lg text-muted-foreground"
                   >
-                    <option value="all">Every day</option>
-                    <option value="day">This day</option>
-                  </select>
+                    <X className="size-4" />
+                  </Button>
                   <Button
                     type="submit"
                     variant="ghost"
@@ -846,7 +881,7 @@ export function TodayList() {
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent
                                     align="end"
-                                    className="w-48"
+                                    className="w-56"
                                   >
                                     {bucket.persistent && (
                                       <>
@@ -862,6 +897,19 @@ export function TodayList() {
                                           }
                                         >
                                           Remove from this day
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          onClick={() =>
+                                            setBucketToDelete({
+                                              id: bucket.id,
+                                              name: bucket.name,
+                                              taskCount: bucketTodos.length,
+                                              persistent: true,
+                                              scope: "future",
+                                            })
+                                          }
+                                        >
+                                          Remove from this day onward
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                       </>
@@ -959,17 +1007,50 @@ export function TodayList() {
             </div>
           </DndContext>
         </div>
-      </motion.section>
+      </section>
       <AnimatePresence>
         {selectedTodo && (
           <TaskDetailsPanel
-            key={selectedTodo.id}
+            key="task-details"
             todo={selectedTodo}
             day={day}
             onClose={() => setSelectedTodo(null)}
           />
         )}
       </AnimatePresence>
+      <Dialog
+        open={Boolean(bucketNameToCreate)}
+        onOpenChange={(open) => {
+          if (!open) setBucketNameToCreate(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Where should this bucket appear?</DialogTitle>
+            <DialogDescription>
+              “{bucketNameToCreate}” can stay on {dateLabel(day)} or appear every
+              day.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={createBucket.isPending}
+              onClick={() => createBucketWithScope(false)}
+            >
+              This day
+            </Button>
+            <Button
+              type="button"
+              disabled={createBucket.isPending}
+              onClick={() => createBucketWithScope(true)}
+            >
+              Every day
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={Boolean(bucketToDelete)}
         onOpenChange={(open) => {
@@ -981,11 +1062,15 @@ export function TodayList() {
             <DialogTitle>
               {bucketToDelete?.scope === "day" && bucketToDelete.persistent
                 ? `Remove “${bucketToDelete.name}” from this day?`
-                : `Delete “${bucketToDelete?.name}”?`}
+                : bucketToDelete?.scope === "future"
+                  ? `Remove “${bucketToDelete.name}” from this day onward?`
+                  : `Delete “${bucketToDelete?.name}” everywhere?`}
             </DialogTitle>
             <DialogDescription>
               {bucketToDelete?.scope === "all"
-                ? "This removes the bucket from every day. Its tasks will remain and move to Unbucketed."
+                ? "This removes the bucket from every day, including its history. Its tasks will remain and move to Unbucketed."
+                : bucketToDelete?.scope === "future"
+                  ? `Earlier days stay unchanged. Tasks from ${dateLabel(day)} onward will move to Unbucketed.`
                 : bucketToDelete?.taskCount
                   ? `${bucketToDelete.taskCount} task${bucketToDelete.taskCount === 1 ? "" : "s"} on this day will move to Unbucketed.`
                   : "The bucket will no longer appear on this day."}
@@ -1017,7 +1102,9 @@ export function TodayList() {
             >
               {bucketToDelete?.scope === "day" && bucketToDelete.persistent
                 ? "Remove from this day"
-                : "Delete bucket"}
+                : bucketToDelete?.scope === "future"
+                  ? "Remove from this day onward"
+                  : "Delete everywhere"}
             </Button>
           </DialogFooter>
         </DialogContent>

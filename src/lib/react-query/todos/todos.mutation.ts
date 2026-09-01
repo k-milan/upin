@@ -50,8 +50,10 @@ export function useDeleteTodo() {
   });
 }
 export function useReorderTodos() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: reorderTodos,
     onError: () => toast.error("Couldn’t save that task order."),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["todos"] }),
   });
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "daily_buckets" ADD COLUMN "ends_before" date;

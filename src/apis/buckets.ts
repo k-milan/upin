@@ -19,7 +19,7 @@ export async function updateBucket(id: string, name: string) {
 export async function deleteBucket(input: {
   id: string;
   date: string;
-  scope: "day" | "all";
+  scope: "day" | "future" | "all";
 }) {
   await http.delete(`/v1/buckets/${input.id}`, {
     data: { date: input.date, scope: input.scope },
