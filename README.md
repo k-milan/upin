@@ -14,7 +14,7 @@ The web app owns the browser UI and `/api` routes. A separate TypeScript MCP pro
 
 ## Current state
 
-UPin now has a working Today view and Inbox, date navigation, user-defined daily buckets, persisted task and bucket ordering, a start-of-day carry-over review, Markdown task notes, and local task attachments. With `DATABASE_URL` configured, task data persists in PostgreSQL; without it, the app falls back to a development-only in-memory store.
+UPin has a working daily-first Today view, date navigation, user-defined daily buckets, persisted task and bucket ordering, rolling unfinished tasks, Markdown task notes, and local task attachments. With `DATABASE_URL` configured, task data persists in PostgreSQL; without it, the app falls back to a development-only in-memory store.
 
 ## Daily buckets and drag-and-drop
 
@@ -26,7 +26,7 @@ Today is organised into small, named buckets you create for that particular day 
 - The separate **Unbucketed** section holds tasks that do not belong in a daily bucket yet.
 - Buckets themselves can be reordered on the day.
 - Empty buckets stay visible until deliberately removed.
-- At the start of the current day, unfinished tasks from yesterday can be carried over individually, all together, or not at all. Carried tasks enter Unbucketed for fresh organisation.
+- Tasks without a future date are active and remain in Today until completed. A future-dated task appears on its chosen day, then automatically joins the rolling Today list if it remains unfinished.
 - Dragging must remain fully keyboard-accessible; it is a convenience, not the only way to organise tasks.
 
 Each task opens in a responsive floating paper panel: half-width on larger screens and full-screen on smaller ones. Notes live together as Markdown with debounced autosave. Files up to 10 MB can be attached, downloaded, and removed; files are stored under `storage/attachments` while their metadata lives in PostgreSQL.

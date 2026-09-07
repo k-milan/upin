@@ -17,7 +17,6 @@ import {
   ChevronRight,
   Download,
   GripVertical,
-  Inbox,
   MoreVertical,
   Moon,
   Paperclip,
@@ -27,7 +26,6 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import Link from "next/link";
 import { useTheme } from "next-themes";
 import {
   type FormEvent,
@@ -39,7 +37,7 @@ import {
 } from "react";
 
 import type { Todo } from "@/apis/todos.types";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
@@ -73,7 +71,6 @@ import {
 } from "@/lib/react-query/buckets/buckets.query";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
-import { CarryReviewDialog } from "@/components/upin/carry-review-dialog";
 import {
   Dialog,
   DialogContent,
@@ -259,7 +256,7 @@ function TaskComposer({
         title,
         bucket: "today",
         bucketId: bucketId ?? undefined,
-        scheduledFor: day,
+        scheduledFor: day > dateKey(new Date()) ? day : undefined,
       },
       {
         onSuccess: () => {
@@ -593,8 +590,15 @@ export function TodayList() {
     [buckets, todos],
   );
   const unbucketedTodos = useMemo(
-    () => orderedTodos(todos.filter((todo) => !todo.bucketId)),
-    [todos],
+    () =>
+      orderedTodos(
+        todos.filter(
+          (todo) =>
+            !todo.bucketId ||
+            !buckets.some((bucket) => bucket.id === todo.bucketId),
+        ),
+      ),
+    [buckets, todos],
   );
 
   function addBucket(event: FormEvent<HTMLFormElement>) {
@@ -680,16 +684,14 @@ export function TodayList() {
         { ...task, bucketId: destination },
       );
     }
-    const sourceItems =
-      sameBucket
-        ? []
-        : orderedTodos(
-            todos.filter(
-              (todo) =>
-                todo.id !== task.id &&
-                (todo.bucketId ?? null) === sourceBucket,
-            ),
-          );
+    const sourceItems = sameBucket
+      ? []
+      : orderedTodos(
+          todos.filter(
+            (todo) =>
+              todo.id !== task.id && (todo.bucketId ?? null) === sourceBucket,
+          ),
+        );
     const changed = [
       ...sourceItems.map((todo, position) => ({ ...todo, position })),
       ...destinationItems.map((todo, position) => ({ ...todo, position })),
@@ -711,7 +713,6 @@ export function TodayList() {
   }
   return (
     <div className="min-h-screen md:flex">
-      <CarryReviewDialog date={day} isToday={day === dateKey(new Date())} />
       <section
         className={cn(
           "min-w-0 flex-1 px-5 pb-16 pt-10 sm:pt-16",
@@ -748,17 +749,6 @@ export function TodayList() {
                   <Moon className="size-4" />
                 )}
               </Button>
-              <Link
-                href="/inbox"
-                className={buttonVariants({
-                  variant: "ghost",
-                  size: "sm",
-                  className:
-                    "rounded-[10px] text-muted-foreground hover:text-foreground",
-                })}
-              >
-                <Inbox className="size-4" /> Inbox
-              </Link>
             </div>
           </header>
           <div className="mb-6">
@@ -1028,8 +1018,8 @@ export function TodayList() {
           <DialogHeader>
             <DialogTitle>Where should this bucket appear?</DialogTitle>
             <DialogDescription>
-              “{bucketNameToCreate}” can stay on {dateLabel(day)} or appear every
-              day.
+              “{bucketNameToCreate}” can stay on {dateLabel(day)} or appear
+              every day.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -1071,9 +1061,9 @@ export function TodayList() {
                 ? "This removes the bucket from every day, including its history. Its tasks will remain and move to Unbucketed."
                 : bucketToDelete?.scope === "future"
                   ? `Earlier days stay unchanged. Tasks from ${dateLabel(day)} onward will move to Unbucketed.`
-                : bucketToDelete?.taskCount
-                  ? `${bucketToDelete.taskCount} task${bucketToDelete.taskCount === 1 ? "" : "s"} on this day will move to Unbucketed.`
-                  : "The bucket will no longer appear on this day."}
+                  : bucketToDelete?.taskCount
+                    ? `${bucketToDelete.taskCount} task${bucketToDelete.taskCount === 1 ? "" : "s"} on this day will move to Unbucketed.`
+                    : "The bucket will no longer appear on this day."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

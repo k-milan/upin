@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, ChevronDown, Inbox } from "lucide-react";
+import { CalendarDays, ChevronDown } from "lucide-react";
 import { useState } from "react";
 
 import type { Todo } from "@/apis/todos.types";
@@ -48,7 +48,7 @@ export function TaskScheduleControls({
     );
   }
 
-  function moveToInbox() {
+  function makeActive() {
     updateTodo.mutate(
       { id: todo.id, input: { scheduledFor: null, bucketId: null } },
       {
@@ -68,8 +68,10 @@ export function TaskScheduleControls({
         month: "short",
         day: "numeric",
         timeZone: "UTC",
-      }).format(new Date(`${savedDate}T12:00:00Z`))} · ${savedBucket?.name ?? "Unbucketed"}`
-    : "Schedule";
+      }).format(
+        new Date(`${savedDate}T12:00:00Z`),
+      )} · ${savedBucket?.name ?? "Unbucketed"}`
+    : "Active now";
 
   function toggleEditor() {
     setDate(savedDate);
@@ -82,12 +84,7 @@ export function TaskScheduleControls({
   }
 
   return (
-    <div
-      className={cn(
-        "relative",
-        compact ? "mt-1.5 pl-8" : "mt-3",
-      )}
-    >
+    <div className={cn("relative", compact ? "mt-1.5 pl-8" : "mt-3")}>
       <Button
         type="button"
         variant="ghost"
@@ -137,10 +134,10 @@ export function TaskScheduleControls({
                 variant="ghost"
                 size="sm"
                 disabled={updateTodo.isPending}
-                onClick={moveToInbox}
+                onClick={makeActive}
                 className="mr-auto h-7 px-2 text-xs text-muted-foreground"
               >
-                <Inbox className="size-3.5" /> Move to Inbox
+                Make active now
               </Button>
             )}
             <Button

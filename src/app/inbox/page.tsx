@@ -1,3 +1,5 @@
-import { InboxList } from "@/components/upin/inbox-list";
+import { redirect } from "next/navigation";
 
-export default function InboxPage() { return <InboxList />; }
+export default function InboxPage() {
+  redirect("/");
+}

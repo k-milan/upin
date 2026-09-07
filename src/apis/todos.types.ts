@@ -34,8 +34,3 @@ export type DailyBucket = {
   position: number;
   persistent: boolean;
 };
-export type CarryReview = {
-  reviewed: boolean;
-  previousDate: string;
-  tasks: Todo[];
-};
