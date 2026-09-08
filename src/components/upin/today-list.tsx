@@ -371,7 +371,7 @@ function TaskMarkdownEditor({ todo }: { todo: Todo }) {
   }, [markdown, saveTodo, todo.id]);
 
   return (
-    <div className="mt-8 flex min-h-0 flex-1 flex-col">
+    <div className="mt-3 flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto">
         <MarkdownBlockEditor
           value={markdown}
