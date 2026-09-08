@@ -998,10 +998,10 @@ export function TodayList() {
           </DndContext>
         </div>
       </section>
-      <AnimatePresence>
+      <AnimatePresence mode="wait" initial={false}>
         {selectedTodo && (
           <TaskDetailsPanel
-            key="task-details"
+            key={selectedTodo.id}
             todo={selectedTodo}
             day={day}
             onClose={() => setSelectedTodo(null)}
