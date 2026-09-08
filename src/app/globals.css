@@ -76,6 +76,15 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* iOS Safari zooms the viewport when a form control's text is below 16px. */
+@media (hover: none) and (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 .markdown-block-content {
   min-height: 16rem;
   outline: none;
