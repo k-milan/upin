@@ -55,22 +55,15 @@ import {
   useReorderTodos,
   useUpdateTodo,
 } from "@/lib/react-query/todos/todos.mutation";
-import {
-  todosQueryOptions,
-  useTodos,
-} from "@/lib/react-query/todos/todos.query";
+import { useTodos } from "@/lib/react-query/todos/todos.query";
 import {
   useCreateBucket,
   useDeleteBucket,
   useReorderBuckets,
   useUpdateBucket,
 } from "@/lib/react-query/buckets/buckets.mutation";
-import {
-  bucketsQueryOptions,
-  useBuckets,
-} from "@/lib/react-query/buckets/buckets.query";
+import { useBuckets } from "@/lib/react-query/buckets/buckets.query";
 import { cn } from "@/lib/utils";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -94,8 +87,9 @@ function TaskRow({
   onOpen: () => void;
   onDeleted: (id: string) => void;
 }) {
-  const taskDrag = useDraggable({ id: todo.id });
-  const taskDrop = useDroppable({ id: todo.id });
+  const pending = todo.id.startsWith("pending:");
+  const taskDrag = useDraggable({ id: todo.id, disabled: pending });
+  const taskDrop = useDroppable({ id: todo.id, disabled: pending });
   const updateTodo = useUpdateTodo();
   const deleteTodo = useDeleteTodo();
   return (
@@ -109,7 +103,10 @@ function TaskRow({
           ? `translate3d(${taskDrag.transform.x}px, ${taskDrag.transform.y}px, 0)`
           : undefined,
       }}
+      inert={pending}
+      aria-busy={pending}
       className={cn(
+        pending && "pointer-events-none opacity-60",
         "flex items-center gap-2 border-b border-border py-3.5 last:border-b-0",
         taskDrag.isDragging && "opacity-40",
         taskDrop.isOver && !taskDrag.isDragging && "bg-muted/60",
@@ -125,6 +122,7 @@ function TaskRow({
         <GripVertical className="size-4" />
       </button>
       <Checkbox
+        disabled={pending}
         checked={todo.completed}
         onCheckedChange={(checked) =>
           updateTodo.mutate({
@@ -136,6 +134,7 @@ function TaskRow({
       />
       <button
         type="button"
+        disabled={pending}
         onClick={onOpen}
         className="min-w-0 flex-1 text-left"
       >
@@ -180,8 +179,9 @@ function Bucket({
   id: string;
   children: (dragHandle: React.ReactNode) => React.ReactNode;
 }) {
-  const { isOver, setNodeRef } = useDroppable({ id });
-  const bucketDrag = useDraggable({ id: `bucket:${id}` });
+  const pending = id.startsWith("pending:");
+  const { isOver, setNodeRef } = useDroppable({ id, disabled: pending });
+  const bucketDrag = useDraggable({ id: `bucket:${id}`, disabled: pending });
   const dragHandle = (
     <button
       type="button"
@@ -195,6 +195,8 @@ function Bucket({
   );
   return (
     <section
+      inert={pending}
+      aria-busy={pending}
       ref={(node) => {
         setNodeRef(node);
         bucketDrag.setNodeRef(node);
@@ -206,6 +208,7 @@ function Bucket({
       }}
       className={cn(
         "rounded-2xl border border-transparent px-3 transition-colors",
+        pending && "opacity-60",
         (isOver || bucketDrag.isDragging) && "border-primary/40 bg-accent/50",
         bucketDrag.isDragging && "opacity-50",
       )}
@@ -232,7 +235,6 @@ function TaskComposer({
   const [title, setTitle] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const queryClient = useQueryClient();
   const isOpen = activeComposerId === composerId;
   useEffect(() => {
     if (isOpen) window.requestAnimationFrame(() => inputRef.current?.focus());
@@ -251,6 +253,7 @@ function TaskComposer({
   function addTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!title.trim()) return;
+    setTitle("");
     createTodo.mutate(
       {
         title,
@@ -259,13 +262,7 @@ function TaskComposer({
         scheduledFor: day > dateKey(new Date()) ? day : undefined,
       },
       {
-        onSuccess: () => {
-          queryClient.invalidateQueries({
-            queryKey: todosQueryOptions("today", day).queryKey,
-          });
-          setTitle("");
-          window.requestAnimationFrame(() => inputRef.current?.focus());
-        },
+        onError: () => setTitle((draft) => draft || title),
       },
     );
   }
@@ -554,7 +551,6 @@ export function TodayList() {
   const reorderBuckets = useReorderBuckets();
   const updateBucket = useUpdateBucket();
   const deleteBucket = useDeleteBucket();
-  const queryClient = useQueryClient();
   const { resolvedTheme, setTheme } = useTheme();
   const hasMounted = useSyncExternalStore(
     () => () => {},
@@ -621,6 +617,11 @@ export function TodayList() {
   }
   function moveTask(event: DragEndEvent) {
     if (!event.over) return;
+    if (
+      todos.some((todo) => todo.id.startsWith("pending:")) ||
+      buckets.some((bucket) => bucket.id.startsWith("pending:"))
+    )
+      return;
     const activeId = String(event.active.id);
     if (activeId.startsWith("bucket:")) {
       const bucketId = activeId.slice("bucket:".length);
@@ -640,7 +641,6 @@ export function TodayList() {
         ...bucket,
         position,
       }));
-      queryClient.setQueryData(bucketsQueryOptions(day).queryKey, nextBuckets);
       reorderBuckets.mutate({
         bucketIds: nextBuckets.map((bucket) => bucket.id),
         date: day,
@@ -696,13 +696,6 @@ export function TodayList() {
       ...sourceItems.map((todo, position) => ({ ...todo, position })),
       ...destinationItems.map((todo, position) => ({ ...todo, position })),
     ];
-    const nextTodos = todos.map(
-      (todo) => changed.find((item) => item.id === todo.id) ?? todo,
-    );
-    queryClient.setQueryData(
-      todosQueryOptions("today", day).queryKey,
-      nextTodos,
-    );
     reorderTodos.mutate({
       items: changed.map(({ id, bucketId, position }) => ({
         id,
@@ -1002,7 +995,9 @@ export function TodayList() {
         {selectedTodo && (
           <TaskDetailsPanel
             key={selectedTodo.id}
-            todo={selectedTodo}
+            todo={
+              todos.find((todo) => todo.id === selectedTodo.id) ?? selectedTodo
+            }
             day={day}
             onClose={() => setSelectedTodo(null)}
           />
