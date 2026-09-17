@@ -100,7 +100,7 @@ function EditorToolbar({
   const listItemType = editor.isActive("taskList") ? "taskItem" : "listItem";
 
   return (
-    <div className="relative mb-3">
+    <div className="sticky top-0 z-10 mb-3 bg-card pb-1">
       <div
         id="markdown-formatting-toolbar"
         className="flex flex-wrap items-center gap-0.5 rounded-xl border border-border bg-card p-1 shadow-sm"

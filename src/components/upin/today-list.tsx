@@ -81,17 +81,16 @@ import {
 function TaskRow({
   todo,
   onOpen,
-  onDeleted,
+  onRequestDelete,
 }: {
   todo: Todo;
   onOpen: () => void;
-  onDeleted: (id: string) => void;
+  onRequestDelete: (todo: Todo) => void;
 }) {
   const pending = todo.id.startsWith("pending:");
   const taskDrag = useDraggable({ id: todo.id, disabled: pending });
   const taskDrop = useDroppable({ id: todo.id, disabled: pending });
   const updateTodo = useUpdateTodo();
-  const deleteTodo = useDeleteTodo();
   return (
     <div
       ref={(node) => {
@@ -155,14 +154,7 @@ function TaskRow({
         type="button"
         variant="ghost"
         size="icon-xs"
-        onClick={() => {
-          if (
-            window.confirm(
-              `Delete “${todo.title}”? This also removes its attachments.`,
-            )
-          )
-            deleteTodo.mutate(todo.id, { onSuccess: () => onDeleted(todo.id) });
-        }}
+        onClick={() => onRequestDelete(todo)}
         aria-label={`Delete ${todo.title}`}
         className="shrink-0 text-muted-foreground hover:text-destructive"
       >
@@ -369,7 +361,7 @@ function TaskMarkdownEditor({ todo }: { todo: Todo }) {
 
   return (
     <div className="mt-3 flex min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y">
         <MarkdownBlockEditor
           value={markdown}
           onChange={setMarkdown}
@@ -393,6 +385,9 @@ function TaskAttachments({ todoId }: { todoId: string }) {
   const { data: attachments = [] } = useAttachments(todoId);
   const upload = useUploadAttachment(todoId);
   const remove = useDeleteAttachment(todoId);
+  const [attachmentToDelete, setAttachmentToDelete] = useState<
+    (typeof attachments)[number] | null
+  >(null);
   return (
     <div className="border-t border-border/70 pt-3">
       <div className="flex items-center justify-between">
@@ -437,7 +432,7 @@ function TaskAttachments({ todoId }: { todoId: string }) {
               </a>
               <button
                 type="button"
-                onClick={() => remove.mutate(attachment.id)}
+                onClick={() => setAttachmentToDelete(attachment)}
                 aria-label={`Remove ${attachment.name}`}
                 className="rounded p-1 text-muted-foreground hover:text-destructive"
               >
@@ -447,6 +442,44 @@ function TaskAttachments({ todoId }: { todoId: string }) {
           ))}
         </ul>
       )}
+      <Dialog
+        open={Boolean(attachmentToDelete)}
+        onOpenChange={(open) => {
+          if (!open && !remove.isPending) setAttachmentToDelete(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove attachment?</DialogTitle>
+            <DialogDescription>
+              “{attachmentToDelete?.name}” will be removed from this task.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={remove.isPending}
+              onClick={() => setAttachmentToDelete(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={remove.isPending}
+              onClick={() => {
+                if (attachmentToDelete)
+                  remove.mutate(attachmentToDelete.id, {
+                    onSuccess: () => setAttachmentToDelete(null),
+                  });
+              }}
+            >
+              {remove.isPending ? "Removing…" : "Remove attachment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -455,14 +488,15 @@ function TaskDetailsPanel({
   todo,
   day,
   onClose,
+  onRequestDelete,
 }: {
   todo: Todo;
   day: string;
   onClose: () => void;
+  onRequestDelete: (todo: Todo) => void;
 }) {
   const reduceMotion = useReducedMotion();
   const updateTodo = useUpdateTodo();
-  const deleteTodo = useDeleteTodo();
   return (
     <motion.aside
       initial={reduceMotion ? false : { opacity: 0, x: 24 }}
@@ -472,9 +506,9 @@ function TaskDetailsPanel({
         duration: reduceMotion ? 0.01 : 0.32,
         ease: [0.22, 1, 0.36, 1],
       }}
-      className="fixed inset-0 z-30 flex min-h-screen bg-background p-0 md:sticky md:top-0 md:z-0 md:h-screen md:w-1/2 md:bg-transparent md:p-5"
+      className="fixed inset-0 z-30 flex h-dvh min-h-0 overflow-y-auto overscroll-contain bg-background p-0 md:sticky md:top-0 md:z-0 md:w-1/2 md:bg-transparent md:p-5"
     >
-      <div className="flex min-h-0 w-full flex-1 flex-col bg-card px-6 py-6 md:rounded-3xl md:px-9 md:py-8 md:shadow-[0_18px_45px_rgba(77,48,31,0.10)]">
+      <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-card px-6 py-6 md:rounded-3xl md:px-9 md:py-8 md:shadow-[0_18px_45px_rgba(77,48,31,0.10)]">
         <div className="flex min-h-0 flex-1 flex-col">
           <header className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
@@ -500,18 +534,18 @@ function TaskDetailsPanel({
                 className="h-auto border-0 !bg-transparent px-0 text-xl font-semibold tracking-[-0.04em] shadow-none focus-visible:ring-0"
               />
             </div>
+            <TaskScheduleControls
+              key={todo.id}
+              todo={todo}
+              onScheduled={(scheduledTodo) => {
+                if (scheduledTodo.scheduledFor !== day) onClose();
+              }}
+            />
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              onClick={() => {
-                if (
-                  window.confirm(
-                    `Delete “${todo.title}”? This also removes its attachments.`,
-                  )
-                )
-                  deleteTodo.mutate(todo.id, { onSuccess: onClose });
-              }}
+              onClick={() => onRequestDelete(todo)}
               className="size-8 shrink-0 rounded-lg text-muted-foreground hover:text-destructive"
               aria-label="Delete task"
             >
@@ -528,13 +562,6 @@ function TaskDetailsPanel({
               <span className="sr-only">Close details</span>
             </Button>
           </header>
-          <TaskScheduleControls
-            key={todo.id}
-            todo={todo}
-            onScheduled={(scheduledTodo) => {
-              if (scheduledTodo.scheduledFor !== day) onClose();
-            }}
-          />
           <TaskMarkdownEditor key={todo.id} todo={todo} />
         </div>
       </div>
@@ -551,6 +578,7 @@ export function TodayList() {
   const reorderBuckets = useReorderBuckets();
   const updateBucket = useUpdateBucket();
   const deleteBucket = useDeleteBucket();
+  const deleteTodo = useDeleteTodo();
   const { resolvedTheme, setTheme } = useTheme();
   const hasMounted = useSyncExternalStore(
     () => () => {},
@@ -562,6 +590,7 @@ export function TodayList() {
     useSensor(KeyboardSensor),
   );
   const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
+  const [todoToDelete, setTodoToDelete] = useState<Todo | null>(null);
   const [newBucketName, setNewBucketName] = useState("");
   const [bucketNameToCreate, setBucketNameToCreate] = useState<string | null>(
     null,
@@ -705,14 +734,14 @@ export function TodayList() {
     });
   }
   return (
-    <div className="min-h-screen md:flex">
+    <div className="flex h-dvh min-h-0 overflow-hidden md:flex-row">
       <section
         className={cn(
-          "min-w-0 flex-1 px-5 pb-16 pt-10 sm:pt-16",
+          "flex min-h-0 min-w-0 flex-1 flex-col px-5 pt-10 sm:pt-16",
           selectedTodo && "md:max-w-[50%]",
         )}
       >
-        <div className="mx-auto w-full max-w-xl">
+        <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col">
           <header className="mb-9 flex items-center justify-between">
             <div className="flex items-center gap-2.5 text-lg font-semibold tracking-[-0.04em]">
               <span className="grid size-6 place-items-center rounded-[8px] bg-primary text-primary-foreground">
@@ -820,7 +849,7 @@ export function TodayList() {
             </div>
           </div>
           <DndContext sensors={sensors} onDragEnd={moveTask}>
-            <div className="space-y-3">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-16 touch-pan-y">
               {isLoading ? (
                 <p className="py-5 text-sm text-muted-foreground">
                   Opening your list…
@@ -931,11 +960,7 @@ export function TodayList() {
                                 key={todo.id}
                                 todo={todo}
                                 onOpen={() => setSelectedTodo(todo)}
-                                onDeleted={(id) =>
-                                  setSelectedTodo((current) =>
-                                    current?.id === id ? null : current,
-                                  )
-                                }
+                                onRequestDelete={setTodoToDelete}
                               />
                             ))}
                             <TaskComposer
@@ -969,11 +994,7 @@ export function TodayList() {
                             key={todo.id}
                             todo={todo}
                             onOpen={() => setSelectedTodo(todo)}
-                            onDeleted={(id) =>
-                              setSelectedTodo((current) =>
-                                current?.id === id ? null : current,
-                              )
-                            }
+                            onRequestDelete={setTodoToDelete}
                           />
                         ))}
                         <TaskComposer
@@ -1000,9 +1021,55 @@ export function TodayList() {
             }
             day={day}
             onClose={() => setSelectedTodo(null)}
+            onRequestDelete={setTodoToDelete}
           />
         )}
       </AnimatePresence>
+      <Dialog
+        open={Boolean(todoToDelete)}
+        onOpenChange={(open) => {
+          if (!open && !deleteTodo.isPending) setTodoToDelete(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete task?</DialogTitle>
+            <DialogDescription>
+              “{todoToDelete?.title}” and its attachments will be permanently
+              deleted.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={deleteTodo.isPending}
+              onClick={() => setTodoToDelete(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleteTodo.isPending}
+              onClick={() => {
+                if (!todoToDelete) return;
+                const id = todoToDelete.id;
+                deleteTodo.mutate(id, {
+                  onSuccess: () => {
+                    setTodoToDelete(null);
+                    setSelectedTodo((current) =>
+                      current?.id === id ? null : current,
+                    );
+                  },
+                });
+              }}
+            >
+              {deleteTodo.isPending ? "Deleting…" : "Delete task"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={Boolean(bucketNameToCreate)}
         onOpenChange={(open) => {

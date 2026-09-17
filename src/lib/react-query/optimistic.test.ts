@@ -2,8 +2,30 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { QueryClient } from "@tanstack/react-query";
 import { optimisticList, currentDay } from "./optimistic";
-import { belongsToList } from "./todos/todos.mutation";
+import { belongsToList, placeTodo } from "./todos/todos.mutation";
 import type { Todo } from "@/apis/todos.types";
+
+test("markdown saves preserve task order when positions are equal", async () => {
+  const client = new QueryClient();
+  const key = ["todos", "list", "today", currentDay(), "current"];
+  const items: Todo[] = ["a", "b", "c"].map((id) => ({
+    id,
+    title: id,
+    completed: false,
+    position: 0,
+    bucket: "today",
+    createdAt: new Date().toISOString(),
+  }));
+  client.setQueryData(key, items);
+  const updated = { ...items[0], detailsMarkdown: "Edited notes" };
+  const save = await optimisticList<Todo>(client, "todos", (todos, listKey) =>
+    placeTodo(todos, listKey, updated),
+  );
+  assert.deepEqual(client.getQueryData(key), [updated, ...items.slice(1)]);
+  await save.finish(false);
+  assert.deepEqual(client.getQueryData(key), [updated, ...items.slice(1)]);
+  client.clear();
+});
 
 test("failed changes do not undo later successful edits", async () => {
   const client = new QueryClient();

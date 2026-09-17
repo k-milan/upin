@@ -23,9 +23,17 @@ export function belongsToList(todo: Todo, key: QueryKey) {
     ? (!todo.scheduledFor || todo.scheduledFor <= day) && !completedEarlier
     : todo.scheduledFor === day;
 }
-function placeTodo(items: Todo[], key: QueryKey, todo: Todo, oldId = todo.id) {
-  const next = items.filter((item) => item.id !== oldId && item.id !== todo.id);
-  if (belongsToList(todo, key)) next.push(todo);
+export function placeTodo(items: Todo[], key: QueryKey, todo: Todo, oldId = todo.id) {
+  const belongs = belongsToList(todo, key);
+  let replaced = false;
+  // Replace in place so equal sort positions retain their existing order.
+  const next = items.flatMap((item) => {
+    if (item.id !== oldId && item.id !== todo.id) return [item];
+    if (!belongs || replaced) return [];
+    replaced = true;
+    return [todo];
+  });
+  if (belongs && !replaced) next.push(todo);
   return next.sort(
     (a, b) =>
       Number(a.completed) - Number(b.completed) || a.position - b.position,
