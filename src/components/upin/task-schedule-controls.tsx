@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import type { Todo } from "@/apis/todos.types";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +14,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { useBuckets } from "@/lib/react-query/buckets/buckets.query";
 import { useUpdateTodo } from "@/lib/react-query/todos/todos.mutation";
 
@@ -119,15 +119,14 @@ function ScheduleFields({
     >
       <label className="grid gap-2 text-sm font-medium">
         Scheduled day
-        <Input
-          type="date"
+        <DatePicker
           value={date}
-          onChange={(event) => {
-            setDate(event.target.value);
+          onChange={(selectedDate) => {
+            setDate(selectedDate);
             setBucketId("");
           }}
           aria-label="Scheduled day"
-          className="h-9 w-full rounded-lg bg-background px-2 text-sm shadow-none"
+          className="w-full"
           disabled={updateTodo.isPending}
         />
       </label>

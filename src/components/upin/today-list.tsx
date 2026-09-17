@@ -11,6 +11,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { format } from "date-fns";
 import {
   Check,
   ChevronLeft,
@@ -39,6 +40,7 @@ import {
 import type { Todo } from "@/apis/todos.types";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -306,7 +308,10 @@ function dateKey(date: Date) {
 function shiftDate(date: string, amount: number) {
   const value = new Date(`${date}T12:00:00`);
   value.setDate(value.getDate() + amount);
-  return dateKey(value);
+  return format(value, "yyyy-MM-dd");
+}
+function startOfWeek(date: string) {
+  return shiftDate(date, -new Date(`${date}T12:00:00`).getDay());
 }
 function dateLabel(date: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -571,6 +576,12 @@ function TaskDetailsPanel({
 
 export function TodayList() {
   const [day, setDay] = useState(() => dateKey(new Date()));
+  const [weekStart, setWeekStart] = useState(() =>
+    startOfWeek(dateKey(new Date())),
+  );
+  const weekDays = Array.from({ length: 7 }, (_, index) =>
+    shiftDate(weekStart, index),
+  );
   const { data: todos = [], isLoading } = useTodos("today", day);
   const { data: buckets = [] } = useBuckets(day);
   const reorderTodos = useReorderTodos();
@@ -774,24 +785,84 @@ export function TodayList() {
             </div>
           </header>
           <div className="mb-6">
-            <div className="mb-1 flex items-center gap-1 text-sm text-muted-foreground">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setDay(shiftDate(day, -1))}
-                className="size-6 rounded-md"
-              >
-                <ChevronLeft className="size-3.5" />
-              </Button>
-              <span>{dateLabel(day)}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setDay(shiftDate(day, 1))}
-                className="size-6 rounded-md"
-              >
-                <ChevronRight className="size-3.5" />
-              </Button>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <DatePicker
+                value={day}
+                onChange={(selectedDate) => {
+                  setDay(selectedDate);
+                  setWeekStart(startOfWeek(selectedDate));
+                }}
+                aria-label="Jump to date"
+                className="min-w-0 border-0 px-1 shadow-none"
+              />
+              <div className="flex shrink-0 items-center gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const today = dateKey(new Date());
+                    setDay(today);
+                    setWeekStart(startOfWeek(today));
+                  }}
+                  className="h-8 rounded-md px-2 text-xs text-muted-foreground"
+                >
+                  Today
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setWeekStart((start) => shiftDate(start, -7))}
+                  aria-label="Previous week"
+                  className="size-8 rounded-md"
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setWeekStart((start) => shiftDate(start, 7))}
+                  aria-label="Next week"
+                  className="size-8 rounded-md"
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+            </div>
+            <div
+              className="mb-4 grid grid-cols-7 gap-1"
+              role="group"
+              aria-label="Days of the week"
+            >
+              {weekDays.map((weekDay) => {
+                const selected = weekDay === day;
+                const today = weekDay === dateKey(new Date());
+                const label = dateLabel(weekDay);
+                return (
+                  <button
+                    key={weekDay}
+                    type="button"
+                    onClick={() => setDay(weekDay)}
+                    aria-label={label}
+                    aria-pressed={selected}
+                    aria-current={today ? "date" : undefined}
+                    className={cn(
+                      "flex min-w-0 flex-col items-center gap-1 rounded-xl px-0.5 py-2 text-xs transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      selected &&
+                        "bg-primary text-primary-foreground hover:bg-primary",
+                    )}
+                  >
+                    <span className="font-medium">
+                      {new Intl.DateTimeFormat("en-US", {
+                        weekday: "short",
+                      }).format(new Date(`${weekDay}T12:00:00`))}
+                    </span>
+                    <span className="text-base font-semibold">
+                      {Number(weekDay.slice(-2))}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
             <div className="flex items-center justify-between gap-3">
               <h1 className="text-4xl font-semibold tracking-[-0.06em]">
