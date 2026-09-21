@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, gte, isNull, lt, lte, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, isNull, lt, lte, or } from "drizzle-orm";
 
 import type {
   Attachment,
@@ -32,6 +32,7 @@ function mapTodo(todo: typeof todos.$inferSelect): Todo {
     id: todo.id,
     title: todo.title,
     completed: todo.completed,
+    finishFirst: todo.finishFirst,
     position: todo.position,
     bucket: "today",
     scheduledFor:
@@ -63,7 +64,11 @@ export async function listPersistentTodos(
       .select()
       .from(todos)
       .where(and(isNull(todos.scheduledFor), archiveFilter))
-      .orderBy(asc(todos.completed), asc(todos.position));
+      .orderBy(
+        asc(todos.completed),
+        desc(todos.finishFirst),
+        asc(todos.position),
+      );
     return rows.map(mapTodo);
   }
   const rows = await db
@@ -80,7 +85,11 @@ export async function listPersistentTodos(
           )
         : eq(todos.scheduledFor, day),
     )
-    .orderBy(asc(todos.completed), asc(todos.position));
+    .orderBy(
+      asc(todos.completed),
+      desc(todos.finishFirst),
+      asc(todos.position),
+    );
   return rows.map(mapTodo);
 }
 export async function createPersistentTodo(input: CreateTodoInput) {
@@ -165,7 +174,12 @@ export async function updatePersistentTodo(
   input: Partial<
     Pick<
       Todo,
-      "completed" | "title" | "bucket" | "bucketId" | "detailsMarkdown"
+      | "completed"
+      | "finishFirst"
+      | "title"
+      | "bucket"
+      | "bucketId"
+      | "detailsMarkdown"
     >
   >,
 ) {
@@ -175,6 +189,7 @@ export async function updatePersistentTodo(
     .set({
       title: input.title?.trim(),
       completed: input.completed,
+      finishFirst: input.finishFirst,
       completedAt:
         input.completed === true
           ? new Date()

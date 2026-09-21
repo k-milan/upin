@@ -16,7 +16,7 @@ The local endpoint is `http://127.0.0.1:3333/mcp`. In a separate terminal, confi
 pnpm mcp:smoke
 ```
 
-The server exposes task and bucket listing, task creation, day/bucket scheduling, early carry-forward, completion, Markdown-detail, and task-deletion tools. Setting a task's schedule date to `null` moves it to the Inbox. `delete_task` permanently removes the task and its attachments, is marked destructive, and requires `confirm: true` after explicit user confirmation.
+The server exposes task and bucket listing, task creation, day/bucket scheduling, early carry-forward, completion, Finish-first priority, Markdown-detail, and task-deletion tools. Use `set_task_priority` with `prioritized: true` to mark a task urgent/Finish first, or `false` to clear it. Setting a task's schedule date to `null` moves it to the Inbox. `delete_task` permanently removes the task and its attachments, is marked destructive, and requires `confirm: true` after explicit user confirmation.
 
 ## Deployment
 

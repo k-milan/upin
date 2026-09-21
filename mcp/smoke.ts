@@ -17,6 +17,7 @@ async function main() {
     "list_today_tasks",
     "schedule_task",
     "set_task_completion",
+    "set_task_priority",
     "update_task_details",
   ];
 

@@ -26,7 +26,12 @@ export async function updateTodo(
   input: Partial<
     Pick<
       Todo,
-      "completed" | "title" | "bucket" | "bucketId" | "detailsMarkdown"
+      | "completed"
+      | "finishFirst"
+      | "title"
+      | "bucket"
+      | "bucketId"
+      | "detailsMarkdown"
     >
   > &
     Partial<TaskScheduleInput>,

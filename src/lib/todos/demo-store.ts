@@ -10,6 +10,7 @@ const initialTodos: Todo[] = [
     id: "upin-1",
     title: "Sketch the UPin home screen",
     completed: false,
+    finishFirst: false,
     position: 0,
     bucket: "today",
     scheduledFor: "2026-08-27",
@@ -20,6 +21,7 @@ const initialTodos: Todo[] = [
     id: "upin-2",
     title: "Pick up cat food",
     completed: false,
+    finishFirst: false,
     position: 0,
     bucket: "today",
     scheduledFor: "2026-08-27",
@@ -30,6 +32,7 @@ const initialTodos: Todo[] = [
     id: "upin-3",
     title: "Reply to Mara",
     completed: true,
+    finishFirst: false,
     position: 1,
     bucket: "today",
     scheduledFor: "2026-08-27",
@@ -182,6 +185,7 @@ export function listDemoTodos(
     .sort(
       (left, right) =>
         Number(left.completed) - Number(right.completed) ||
+        Number(right.finishFirst) - Number(left.finishFirst) ||
         left.position - right.position,
     )
     .map((todo) => ({
@@ -217,6 +221,7 @@ export function createDemoTodo(input: CreateTodoInput) {
     scheduledFor,
     bucketId: input.bucketId,
     completed: false,
+    finishFirst: false,
     position: todos.filter(
       (item) =>
         item.bucketId === input.bucketId && item.scheduledFor === scheduledFor,
@@ -232,7 +237,12 @@ export function updateDemoTodo(
   input: Partial<
     Pick<
       Todo,
-      "completed" | "title" | "bucket" | "bucketId" | "detailsMarkdown"
+      | "completed"
+      | "finishFirst"
+      | "title"
+      | "bucket"
+      | "bucketId"
+      | "detailsMarkdown"
     >
   >,
 ) {

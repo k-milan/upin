@@ -147,7 +147,10 @@ export function createUpinMcpServer() {
       description:
         "Permanently delete a UPin task and all of its attachments. Only call this after the user has explicitly confirmed deletion.",
       inputSchema: {
-        taskId: z.string().uuid().describe("UPin task ID to permanently delete."),
+        taskId: z
+          .string()
+          .uuid()
+          .describe("UPin task ID to permanently delete."),
         confirm: z
           .literal(true)
           .describe("Must be true to confirm permanent deletion."),
@@ -221,6 +224,30 @@ export function createUpinMcpServer() {
     },
     async ({ taskId, completed }) => {
       const task = await updatePersistentTodo(taskId, { completed });
+      return task ? result(task) : failure("Task not found.");
+    },
+  );
+
+  server.registerTool(
+    "set_task_priority",
+    {
+      title: "Set task priority",
+      description:
+        "Mark a task as urgent/Finish first so it appears ahead of other unfinished tasks, or remove that priority.",
+      inputSchema: {
+        taskId: z.string().uuid().describe("UPin task ID."),
+        prioritized: z
+          .boolean()
+          .describe(
+            "True to mark the task Finish first; false to remove the priority.",
+          ),
+      },
+      annotations: { readOnlyHint: false, openWorldHint: false },
+    },
+    async ({ taskId, prioritized }) => {
+      const task = await updatePersistentTodo(taskId, {
+        finishFirst: prioritized,
+      });
       return task ? result(task) : failure("Task not found.");
     },
   );

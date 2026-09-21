@@ -23,7 +23,12 @@ export function belongsToList(todo: Todo, key: QueryKey) {
     ? (!todo.scheduledFor || todo.scheduledFor <= day) && !completedEarlier
     : todo.scheduledFor === day;
 }
-export function placeTodo(items: Todo[], key: QueryKey, todo: Todo, oldId = todo.id) {
+export function placeTodo(
+  items: Todo[],
+  key: QueryKey,
+  todo: Todo,
+  oldId = todo.id,
+) {
   const belongs = belongsToList(todo, key);
   let replaced = false;
   // Replace in place so equal sort positions retain their existing order.
@@ -36,7 +41,9 @@ export function placeTodo(items: Todo[], key: QueryKey, todo: Todo, oldId = todo
   if (belongs && !replaced) next.push(todo);
   return next.sort(
     (a, b) =>
-      Number(a.completed) - Number(b.completed) || a.position - b.position,
+      Number(a.completed) - Number(b.completed) ||
+      Number(b.finishFirst) - Number(a.finishFirst) ||
+      a.position - b.position,
   );
 }
 
@@ -50,6 +57,7 @@ export function useCreateTodo() {
         id: `pending:${crypto.randomUUID()}`,
         title: input.title.trim(),
         completed: false,
+        finishFirst: false,
         position: 0,
         createdAt: new Date().toISOString(),
         scheduledFor:

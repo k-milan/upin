@@ -12,6 +12,7 @@ test("markdown saves preserve task order when positions are equal", async () => 
     id,
     title: id,
     completed: false,
+    finishFirst: false,
     position: 0,
     bucket: "today",
     createdAt: new Date().toISOString(),
@@ -25,6 +26,29 @@ test("markdown saves preserve task order when positions are equal", async () => 
   await save.finish(false);
   assert.deepEqual(client.getQueryData(key), [updated, ...items.slice(1)]);
   client.clear();
+});
+
+test("finish-first tasks sort ahead of other incomplete tasks", () => {
+  const regular: Todo = {
+    id: "regular",
+    title: "Regular task",
+    completed: false,
+    finishFirst: false,
+    position: 0,
+    bucket: "today",
+    createdAt: new Date().toISOString(),
+  };
+  const urgent = {
+    ...regular,
+    id: "urgent",
+    title: "Urgent task",
+    finishFirst: true,
+  };
+  const key = ["todos", "list", "today", currentDay(), "current"];
+  assert.deepEqual(
+    placeTodo([regular], key, urgent).map((todo) => todo.id),
+    ["urgent", "regular"],
+  );
 });
 
 test("failed changes do not undo later successful edits", async () => {
@@ -84,6 +108,7 @@ test("task membership follows current, future and archived queries", () => {
     id: "a",
     title: "Task",
     completed: false,
+    finishFirst: false,
     position: 0,
     bucket: "today",
     createdAt: new Date().toISOString(),

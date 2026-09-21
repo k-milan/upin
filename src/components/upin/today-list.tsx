@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Flame,
   GripVertical,
   MoreVertical,
   Moon,
@@ -149,6 +150,32 @@ function TaskRow({
           {todo.title}
         </span>
       </button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        disabled={pending || todo.completed}
+        onClick={() =>
+          updateTodo.mutate({
+            id: todo.id,
+            input: { finishFirst: !todo.finishFirst },
+          })
+        }
+        aria-label={
+          todo.finishFirst
+            ? `Remove ${todo.title} from Finish first`
+            : `Mark ${todo.title} as Finish first`
+        }
+        title={todo.finishFirst ? "Remove from Finish first" : "Finish first"}
+        className={cn(
+          "shrink-0",
+          todo.finishFirst
+            ? "bg-orange-500/10 text-orange-600 hover:bg-orange-500/15 hover:text-orange-700 dark:text-orange-400"
+            : "text-muted-foreground/50 hover:text-orange-600",
+        )}
+      >
+        <Flame className={cn("size-3.5", todo.finishFirst && "fill-current")} />
+      </Button>
       {todo.completed && (
         <Check className="size-4 text-primary" aria-label="Completed" />
       )}
@@ -334,6 +361,7 @@ function orderedTodos(items: Todo[]) {
   return [...items].sort(
     (left, right) =>
       Number(left.completed) - Number(right.completed) ||
+      Number(right.finishFirst) - Number(left.finishFirst) ||
       left.position - right.position,
   );
 }
@@ -539,6 +567,28 @@ function TaskDetailsPanel({
                 className="h-auto border-0 !bg-transparent px-0 text-xl font-semibold tracking-[-0.04em] shadow-none focus-visible:ring-0"
               />
             </div>
+            <Button
+              type="button"
+              variant={todo.finishFirst ? "secondary" : "ghost"}
+              size="sm"
+              disabled={todo.completed}
+              onClick={() =>
+                updateTodo.mutate({
+                  id: todo.id,
+                  input: { finishFirst: !todo.finishFirst },
+                })
+              }
+              aria-pressed={todo.finishFirst}
+              className={cn(
+                "shrink-0 rounded-lg",
+                todo.finishFirst && "text-orange-700 dark:text-orange-400",
+              )}
+            >
+              <Flame
+                className={cn("size-4", todo.finishFirst && "fill-current")}
+              />
+              <span className="hidden lg:inline">Finish first</span>
+            </Button>
             <TaskScheduleControls
               key={todo.id}
               todo={todo}

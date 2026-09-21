@@ -2,6 +2,7 @@ export type Todo = {
   id: string;
   title: string;
   completed: boolean;
+  finishFirst: boolean;
   position: number;
   bucket: "today" | "inbox";
   bucketId?: string | null;

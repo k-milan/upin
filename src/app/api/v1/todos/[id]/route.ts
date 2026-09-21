@@ -15,6 +15,7 @@ import { removeAttachment } from "@/lib/attachments/storage";
 const updateTodoSchema = z.object({
   title: z.string().trim().min(1).max(280).optional(),
   completed: z.boolean().optional(),
+  finishFirst: z.boolean().optional(),
   bucket: z.enum(["today", "inbox"]).optional(),
   bucketId: z.string().min(1).nullable().optional(),
   scheduledFor: z.string().date().nullable().optional(),

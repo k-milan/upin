@@ -1,0 +1,1 @@
+ALTER TABLE "todos" ADD COLUMN "finish_first" boolean DEFAULT false NOT NULL;
